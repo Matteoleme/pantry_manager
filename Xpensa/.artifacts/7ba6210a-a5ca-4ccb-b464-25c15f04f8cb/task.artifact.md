@@ -1,0 +1,6 @@
+- [ ] Setup Colors and Theme with Teal accents
+- [ ] Create Data Models (Product, Category, Unit)
+- [ ] Define Navigation Destinations
+- [ ] Implement PantryScaffold with Drawer, TopBar, and BottomNav
+- [ ] Implement PantryApp and integrate with MainActivity
+- [ ] Verify build and navigation logic
