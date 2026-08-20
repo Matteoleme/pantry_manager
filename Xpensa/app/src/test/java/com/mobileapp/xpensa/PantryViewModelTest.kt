@@ -18,7 +18,7 @@ class PantryViewModelTest {
         val newProduct = Product(
             id = UUID.randomUUID().toString(),
             name = "Test Product",
-            category = Category.ALTRO,
+            category = Category.ALTRO.toString(),
             quantity = 1.0,
             unit = MeasurementUnit.UNIT
         )

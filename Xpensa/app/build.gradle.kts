@@ -87,4 +87,14 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     "ksp"(libs.androidx.room.compiler)
+
+    // CameraX
+    implementation(libs.androidx.camera.core.v134)
+    implementation(libs.androidx.camera.camera2.v134)
+    implementation(libs.androidx.camera.lifecycle.v134)
+    implementation(libs.androidx.camera.view.v130)
+
+    // ML Kit Barcode Scanning
+    implementation(libs.barcode.scanning)
+
 }

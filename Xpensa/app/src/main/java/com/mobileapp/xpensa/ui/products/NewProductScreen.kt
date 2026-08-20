@@ -30,6 +30,7 @@ import java.util.*
 @Composable
 fun NewProductScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToScanner: () -> Unit,
     viewModel: PantryViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -72,6 +73,12 @@ fun NewProductScreen(
             snackbarHostState.showSnackbar(error)
             viewModel.clearFetchState()
         }
+    }
+
+    LaunchedEffect(uiState.scannedEan) {
+        uiState.scannedEan?.let { scannedCode ->
+        ean = scannedCode
+    }
     }
 
     if (showDatePicker) {
@@ -173,8 +180,8 @@ fun NewProductScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             trailingIcon = {
-                                IconButton(onClick = { viewModel.fetchProductFromEan(ean) }) {
-                                    Icon(Icons.Default.PhotoCamera, contentDescription = "Scannerizza")
+                                IconButton(onClick = onNavigateToScanner) {
+                                    Icon(Icons.Default.PhotoCamera, contentDescription = "Apri Scanner")
                                 }
                             }
                         )
@@ -188,8 +195,6 @@ fun NewProductScreen(
                             shape = MaterialTheme.shapes.medium,
                             enabled = ean.isNotBlank() && !uiState.isFetchingProduct
                         ) {
-                            Icon(Icons.Default.PhotoCamera, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
                             Text("Cerca Prodotto da EAN")
                         }
                     }
@@ -442,6 +447,7 @@ fun NewProductScreenPreview() {
     XpensaTheme {
         NewProductScreen(
             onNavigateBack = {},
+            onNavigateToScanner = {},
             viewModel = PantryViewModel()
         )
     }

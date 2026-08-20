@@ -19,6 +19,8 @@ sealed interface PantryDestination : NavKey {
     
     @Serializable
     data object NewProduct : PantryDestination
+    @Serializable
+    data object Scanner : PantryDestination
 
     @Serializable
     data class EditProduct(val productId: String) : PantryDestination

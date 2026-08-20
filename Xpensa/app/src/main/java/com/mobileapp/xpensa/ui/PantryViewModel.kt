@@ -223,6 +223,10 @@ class PantryViewModel : ViewModel() {
     fun clearFetchState() {
         _uiState.update { it.copy(fetchError = null, lastScannedProduct = null) }
     }
+
+    fun setScannedEan(ean: String) {
+        _uiState.update { it.copy(scannedEan = ean) }
+    }
 }
 
 data class ScannedProduct(
@@ -242,7 +246,8 @@ data class PantryUiState(
     val searchQuery: String = "",
     val isFetchingProduct: Boolean = false,
     val fetchError: String? = null,
-    val lastScannedProduct: ScannedProduct? = null
+    val lastScannedProduct: ScannedProduct? = null,
+    val scannedEan: String? = null
 ) {
     val filteredProducts: List<Product>
         get() = products.filter { product ->
