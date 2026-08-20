@@ -175,12 +175,24 @@ class PantryViewModel : ViewModel() {
             } else {
                 state.selectedCategories + category
             }
-            state.copy(selectedCategories = newCategories)
+            // Se seleziono una categoria, disattivo il filtro "Finiti"
+            state.copy(selectedCategories = newCategories, showOnlyOutOfStock = false)
         }
     }
 
     fun clearCategoryFilters() {
-        _uiState.update { it.copy(selectedCategories = emptySet()) }
+        _uiState.update { it.copy(selectedCategories = emptySet(), showOnlyOutOfStock = false) }
+    }
+
+    fun toggleOutOfStockFilter() {
+        _uiState.update { state ->
+            val newState = !state.showOnlyOutOfStock
+            state.copy(
+                showOnlyOutOfStock = newState,
+                // Se attivo "Finiti", svuoto le categorie selezionate
+                selectedCategories = if (newState) emptySet() else state.selectedCategories
+            )
+        }
     }
 
     fun toggleAllCategories(all: Boolean) {
@@ -243,6 +255,7 @@ data class PantryUiState(
     val showConsumptionModal: Boolean = false,
     val showStatsModal: Boolean = false,
     val selectedCategories: Set<String> = emptySet(),
+    val showOnlyOutOfStock: Boolean = false,
     val searchQuery: String = "",
     val isFetchingProduct: Boolean = false,
     val fetchError: String? = null,
@@ -252,7 +265,17 @@ data class PantryUiState(
     val filteredProducts: List<Product>
         get() = products.filter { product ->
             val matchesSearch = product.name.contains(searchQuery, ignoreCase = true)
-            val matchesCategory = selectedCategories.isEmpty() || selectedCategories.contains(product.category)
-            matchesSearch && matchesCategory
+            
+            val matchesFilters = if (showOnlyOutOfStock) {
+                // Modalità "Finiti": solo quantità <= 0
+                product.quantity <= 0.0
+            } else {
+                // Modalità standard: escludi esauriti E filtra per categoria se presente
+                val isAvailable = product.quantity > 0.0
+                val matchesCategory = selectedCategories.isEmpty() || selectedCategories.contains(product.category)
+                isAvailable && matchesCategory
+            }
+            
+            matchesSearch && matchesFilters
         }
 }

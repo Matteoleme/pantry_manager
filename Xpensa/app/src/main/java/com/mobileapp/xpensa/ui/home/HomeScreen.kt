@@ -36,7 +36,7 @@ import com.mobileapp.xpensa.data.MeasurementUnit
 fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: PantryViewModel = viewModel(),
-    showCategoryFilter: Boolean = false,
+    showCategoryFilter: Boolean = true,
     onNavigateToEdit: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -46,7 +46,9 @@ fun HomeScreen(
             CategoryFilterRow(
                 selectedCategories = uiState.selectedCategories,
                 allCategories = uiState.allCategories,
+                showOnlyOutOfStock = uiState.showOnlyOutOfStock,
                 onToggleCategory = { viewModel.toggleCategory(it) },
+                onToggleOutOfStock = { viewModel.toggleOutOfStockFilter() },
                 onClearFilters = { viewModel.clearCategoryFilters() }
             )
         }
@@ -97,7 +99,9 @@ fun HomeScreen(
 fun CategoryFilterRow(
     selectedCategories: Set<String>,
     allCategories: List<String>,
+    showOnlyOutOfStock: Boolean,
     onToggleCategory: (String) -> Unit,
+    onToggleOutOfStock: () -> Unit,
     onClearFilters: () -> Unit
 ) {
     LazyRow(
@@ -109,7 +113,7 @@ fun CategoryFilterRow(
     ) {
         item {
             FilterChip(
-                selected = selectedCategories.isEmpty(),
+                selected = selectedCategories.isEmpty() && !showOnlyOutOfStock,
                 onClick = onClearFilters,
                 label = { Text("Tutto") }
             )
@@ -119,6 +123,17 @@ fun CategoryFilterRow(
                 selected = selectedCategories.contains(category),
                 onClick = { onToggleCategory(category) },
                 label = { Text(category) }
+            )
+        }
+        item {
+            FilterChip(
+                selected = showOnlyOutOfStock,
+                onClick = onToggleOutOfStock,
+                label = { Text("Finiti") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
+                )
             )
         }
     }
