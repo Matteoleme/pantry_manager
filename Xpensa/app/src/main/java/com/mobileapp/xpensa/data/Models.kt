@@ -28,7 +28,6 @@ data class Product(
     val quantity: Double,
     val unit: MeasurementUnit,
     val isFavorite: Boolean = false,
-    val expiryDate: String? = null,
     val kcal: Int? = null,
     val ean: String? = null
 )

@@ -19,6 +19,7 @@ import androidx.compose.ui.window.Dialog
 import com.mobileapp.xpensa.data.MeasurementUnit
 import com.mobileapp.xpensa.data.Product
 import com.mobileapp.xpensa.ui.PantryViewModel
+import com.mobileapp.xpensa.ui.home.CategoryFilterRow
 import com.mobileapp.xpensa.ui.home.formatQuantity
 import com.mobileapp.xpensa.ui.theme.LightGreen
 import com.mobileapp.xpensa.ui.theme.LightRed
@@ -36,6 +37,13 @@ fun MealConsumptionScreen(
     var consumptions by remember { mutableStateOf(mapOf<String, String>()) }
     var showSummary by remember { mutableStateOf<Int?>(null) }
 
+    val filteredProducts = uiState.products.filter { product ->
+        val isAvailable = product.quantity > 0.0
+        val matchesCategory = uiState.consumptionSelectedCategories.isEmpty() || 
+                             uiState.consumptionSelectedCategories.contains(product.category)
+        isAvailable && matchesCategory
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -46,21 +54,36 @@ fun MealConsumptionScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 8.dp)
         )
+
+        CategoryFilterRow(
+            selectedCategories = uiState.consumptionSelectedCategories,
+            allCategories = uiState.allCategories,
+            showOnlyOutOfStock = false,
+            onToggleCategory = { viewModel.toggleConsumptionCategory(it) },
+            onToggleOutOfStock = {}, // Non serve qui
+            onClearFilters = { viewModel.clearConsumptionCategoryFilters() }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(uiState.products.filter { it.quantity > 0 }) { product ->
+            items(filteredProducts) { product ->
                 val isSelected = consumptions.containsKey(product.id)
                 val currentQtyStr = consumptions[product.id] ?: ""
+                
+                val currentQty = currentQtyStr.toDoubleOrNull() ?: 0.0
+                val isOverLimit = currentQty > product.quantity
 
                 ConsumptionProductRow(
                     product = product,
                     isSelected = isSelected,
                     quantityStr = currentQtyStr,
+                    isError = isOverLimit,
                     onToggle = {
                         consumptions = if (isSelected) {
                             consumptions - product.id
@@ -77,6 +100,12 @@ fun MealConsumptionScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val hasInvalidQuantity = consumptions.any { (id, qtyStr) ->
+            val qty = qtyStr.toDoubleOrNull() ?: 0.0
+            val product = uiState.products.find { it.id == id }
+            qty <= 0.0 || (product != null && qty > product.quantity)
+        }
+
         Button(
             onClick = {
                 val finalConsumptions = consumptions
@@ -88,7 +117,7 @@ fun MealConsumptionScreen(
                     showSummary = totalKcal
                 }
             },
-            enabled = consumptions.any { it.value.toDoubleOrNull() ?: 0.0 > 0.0 },
+            enabled = consumptions.isNotEmpty() && !hasInvalidQuantity,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = LightGreen,
@@ -116,6 +145,7 @@ fun ConsumptionProductRow(
     product: Product,
     isSelected: Boolean,
     quantityStr: String,
+    isError: Boolean = false,
     onToggle: () -> Unit,
     onQuantityChange: (String) -> Unit
 ) {
@@ -147,7 +177,8 @@ fun ConsumptionProductRow(
                     )
                     Text(
                         text = "Disp: ${formatQuantity(product.quantity, product.unit)} ${product.unit.symbol}",
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isError) MaterialTheme.colorScheme.error else Color.Unspecified
                     )
                 }
             }
@@ -173,6 +204,7 @@ fun ConsumptionProductRow(
                             keyboardType = if (product.unit == MeasurementUnit.UNIT) KeyboardType.Number else KeyboardType.Decimal
                         ),
                         singleLine = true,
+                        isError = isError,
                         suffix = { Text(product.unit.symbol) }
                     )
                 }

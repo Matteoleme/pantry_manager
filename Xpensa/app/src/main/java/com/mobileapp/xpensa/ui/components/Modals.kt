@@ -127,6 +127,7 @@ fun CategoryCheckbox(
 
 @Composable
 fun StatisticsModal(
+    dailyCalories: Int,
     onDismiss: () -> Unit
 ) {
     val currentDate = LocalDate.now().format(
@@ -172,7 +173,7 @@ fun StatisticsModal(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Hai consumato 100 kcal",
+                            text = "Hai consumato $dailyCalories kcal",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center
                         )
@@ -215,6 +216,6 @@ fun ConsumptionModalPreview() {
 @Composable
 fun StatisticsModalPreview() {
     XpensaTheme {
-        StatisticsModal(onDismiss = {})
+        StatisticsModal(dailyCalories = 100, onDismiss = {})
     }
 }

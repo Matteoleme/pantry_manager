@@ -73,30 +73,36 @@ class PantryViewModel : ViewModel() {
     }
 
     fun consumeProducts(consumptions: Map<String, Double>): Int {
-        var totalKcal = 0
+        var mealKcal = 0
         _uiState.update { state ->
             val updatedProducts = state.products.map { product ->
                 val consumeQty = consumptions[product.id] ?: 0.0
                 if (consumeQty > 0) {
-                    val kcalContribution = product.kcal?.let { 
-                        // Kcal are usually per 100g or per unit. 
-                        // Assuming kcal is per unit or per 100g/ml based on unit
+                    // Validazione: non consumare più del disponibile
+                    val effectiveConsumeQty = minOf(product.quantity, consumeQty)
+                    
+                    val kcalContribution = product.kcal?.let { kcal ->
                         if (product.unit == MeasurementUnit.UNIT) {
-                            (it * consumeQty).toInt()
+                            // Se unità: kcal per unità
+                            (kcal * effectiveConsumeQty).toInt()
                         } else {
-                            // If KG or L, assume kcal is per 100g/ml
-                            (it * consumeQty * 10).toInt() 
+                            // Se KG o L: assumiamo kcal riferite a 100g / 100ml
+                            // (kcal / 100) * (effectiveConsumeQty * 1000) = kcal * effectiveConsumeQty * 10
+                            (kcal * effectiveConsumeQty * 10).toInt()
                         }
                     } ?: 0
-                    totalKcal += kcalContribution
-                    product.copy(quantity = maxOf(0.0, product.quantity - consumeQty))
+                    mealKcal += kcalContribution
+                    product.copy(quantity = maxOf(0.0, product.quantity - effectiveConsumeQty))
                 } else {
                     product
                 }
             }
-            state.copy(products = updatedProducts)
+            state.copy(
+                products = updatedProducts,
+                dailyCalories = state.dailyCalories + mealKcal
+            )
         }
-        return totalKcal
+        return mealKcal
     }
 
     fun addCategory(categoryName: String) {
@@ -184,6 +190,21 @@ class PantryViewModel : ViewModel() {
         _uiState.update { it.copy(selectedCategories = emptySet(), showOnlyOutOfStock = false) }
     }
 
+    fun toggleConsumptionCategory(category: String) {
+        _uiState.update { state ->
+            val newCategories = if (state.consumptionSelectedCategories.contains(category)) {
+                state.consumptionSelectedCategories - category
+            } else {
+                state.consumptionSelectedCategories + category
+            }
+            state.copy(consumptionSelectedCategories = newCategories)
+        }
+    }
+
+    fun clearConsumptionCategoryFilters() {
+        _uiState.update { it.copy(consumptionSelectedCategories = emptySet()) }
+    }
+
     fun toggleOutOfStockFilter() {
         _uiState.update { state ->
             val newState = !state.showOnlyOutOfStock
@@ -255,6 +276,8 @@ data class PantryUiState(
     val showConsumptionModal: Boolean = false,
     val showStatsModal: Boolean = false,
     val selectedCategories: Set<String> = emptySet(),
+    val consumptionSelectedCategories: Set<String> = emptySet(),
+    val dailyCalories: Int = 0,
     val showOnlyOutOfStock: Boolean = false,
     val searchQuery: String = "",
     val isFetchingProduct: Boolean = false,

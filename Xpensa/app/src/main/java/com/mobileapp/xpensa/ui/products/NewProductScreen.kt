@@ -5,7 +5,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,16 +39,12 @@ fun NewProductScreen(
     var quantity by remember { mutableStateOf("") }
     var kcal by remember { mutableStateOf("") }
     var ean by remember { mutableStateOf("") }
-    var expiryDate by remember { mutableStateOf("") }
     var selectedUnit by remember { mutableStateOf(MeasurementUnit.UNIT) }
     var selectedCategoryName by remember { mutableStateOf(Category.ALTRO.displayName) }
 
-    var showDatePicker by remember { mutableStateOf(false) }
     var showNewCategoryDialog by remember { mutableStateOf(false) }
     var newCategoryInput by remember { mutableStateOf("") }
     
-    val datePickerState = rememberDatePickerState()
-
     // Validation
     val isNameValid = name.isNotBlank()
     val isQuantityValid = quantity.isNotBlank() && (quantity.toDoubleOrNull() ?: 0.0) > 0
@@ -79,31 +74,6 @@ fun NewProductScreen(
         uiState.scannedEan?.let { scannedCode ->
         ean = scannedCode
     }
-    }
-
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        val date = Date(it)
-                        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                        expiryDate = formatter.format(date)
-                    }
-                    showDatePicker = false
-                }) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Annulla")
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
     }
 
     if (showNewCategoryDialog) {
@@ -264,23 +234,16 @@ fun NewProductScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = expiryDate,
-                    onValueChange = { },
-                    label = { Text("Data Scadenza") },
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = true,
-                    trailingIcon = {
-                        IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Default.CalendarToday, contentDescription = "Scegli Data")
-                        }
-                    }
-                )
+                val kcalLabel = when(selectedUnit) {
+                    MeasurementUnit.KG -> "Kcal/100g"
+                    MeasurementUnit.L -> "Kcal/100ml"
+                    MeasurementUnit.UNIT -> "Kcal/unità"
+                }
 
                 OutlinedTextField(
                     value = kcal,
                     onValueChange = { kcal = it },
-                    label = { Text("Kcal/100g") },
+                    label = { Text(kcalLabel) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
@@ -315,7 +278,6 @@ fun NewProductScreen(
                                     category = selectedCategoryName,
                                     quantity = quantity.toDoubleOrNull() ?: 0.0,
                                     unit = selectedUnit,
-                                    expiryDate = expiryDate.ifBlank { null },
                                     kcal = kcal.toIntOrNull(),
                                     ean = ean.ifBlank { null }
                                 )

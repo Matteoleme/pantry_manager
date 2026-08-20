@@ -89,6 +89,7 @@ fun HomeScreen(
 
     if (uiState.showStatsModal) {
         StatisticsModal(
+            dailyCalories = uiState.dailyCalories,
             onDismiss = { viewModel.setShowStatsModal(false) }
         )
     }
@@ -271,8 +272,12 @@ fun ProductDetailDialog(
                     value = "${formatQuantity(product.quantity, product.unit)} ${product.unit.symbol}"
                 )
                 DetailItem(label = "Categoria", value = product.category)
-                DetailItem(label = "Scadenza", value = product.expiryDate ?: "N/A")
-                DetailItem(label = "Kcal/100g", value = product.kcal?.toString() ?: "N/A")
+                val kcalLabel = when(product.unit) {
+                    MeasurementUnit.KG -> "Kcal/100g"
+                    MeasurementUnit.L -> "Kcal/100ml"
+                    MeasurementUnit.UNIT -> "Kcal/unità"
+                }
+                DetailItem(label = kcalLabel, value = product.kcal?.toString() ?: "N/A")
                 DetailItem(label = "EAN", value = product.ean ?: "N/A")
 
                 Spacer(modifier = Modifier.height(8.dp))
