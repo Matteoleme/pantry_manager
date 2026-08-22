@@ -311,6 +311,22 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
     fun setScannedEan(ean: String) {
         _uiState.update { it.copy(scannedEan = ean) }
     }
+
+    fun addStore(store: Store) {
+        _uiState.update { state ->
+            val newStores = state.stores + store
+            viewModelScope.launch { dataStoreManager.saveStores(newStores) }
+            state.copy(stores = newStores)
+        }
+    }
+
+    fun deleteStore(storeId: String) {
+        _uiState.update { state ->
+            val newStores = state.stores.filter { it.id != storeId }
+            viewModelScope.launch { dataStoreManager.saveStores(newStores) }
+            state.copy(stores = newStores)
+        }
+    }
 }
 
 data class ScannedProduct(

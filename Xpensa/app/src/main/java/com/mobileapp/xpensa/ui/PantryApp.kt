@@ -18,6 +18,7 @@ import com.mobileapp.xpensa.ui.consumption.MealConsumptionScreen
 import com.mobileapp.xpensa.ui.home.HomeScreen
 import com.mobileapp.xpensa.ui.products.EditProductScreen
 import com.mobileapp.xpensa.ui.products.NewProductScreen
+import com.mobileapp.xpensa.ui.stores.StoresScreen
 import com.mobileapp.xpensa.ui.theme.XpensaTheme
 
 import androidx.compose.ui.platform.LocalContext
@@ -85,6 +86,9 @@ fun PantryApp() {
                 }
                 PantryDestination.Trends -> NavEntry(key) { TrendsScreen() }
                 PantryDestination.Favorites -> NavEntry(key) { FavoritesScreen() }
+                PantryDestination.Stores -> NavEntry(key) { 
+                    StoresScreen(viewModel = pantryViewModel) 
+                }
                 PantryDestination.NewProduct -> NavEntry(key) { 
                     NewProductScreen(
                         onNavigateBack = {

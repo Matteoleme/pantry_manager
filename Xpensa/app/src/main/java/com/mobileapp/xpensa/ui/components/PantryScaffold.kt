@@ -38,7 +38,7 @@ fun PantryScaffold(
     val drawerItems = listOf(
         DrawerItem("Nuovo Prodotto", Icons.Default.Add, PantryDestination.NewProduct),
         DrawerItem("Scannerizza EAN", Icons.Rounded.QrCodeScanner, PantryDestination.NewProduct),
-        DrawerItem("Negozi Vicini", Icons.Default.Store),
+        DrawerItem("I Miei Negozi", Icons.Default.Store, PantryDestination.Stores),
         DrawerItem("Statistiche Diarie", Icons.Default.BarChart),
         DrawerItem("Lista Spesa", Icons.Default.ShoppingCart),
         DrawerItem("Condividi", Icons.Default.Share)
