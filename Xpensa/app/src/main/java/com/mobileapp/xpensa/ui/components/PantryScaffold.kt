@@ -148,8 +148,10 @@ fun PantryScaffold(
                 }
             },
             floatingActionButton = {
-                FloatingActionButton(onClick = { onNavigate(PantryDestination.NewProduct) }) {
-                    Icon(Icons.Default.Add, contentDescription = "Aggiungi Prodotto")
+                if (currentDestination != PantryDestination.Stores) {
+                    FloatingActionButton(onClick = { onNavigate(PantryDestination.NewProduct) }) {
+                        Icon(Icons.Default.Add, contentDescription = "Aggiungi Prodotto")
+                    }
                 }
             }
         ) { innerPadding ->

@@ -40,3 +40,8 @@ data class Store(
     val latitude: Double,
     val longitude: Double
 )
+
+data class UserLocation(
+    val latitude: Double,
+    val longitude: Double
+)

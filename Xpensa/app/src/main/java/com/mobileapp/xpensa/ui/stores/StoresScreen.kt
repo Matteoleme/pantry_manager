@@ -7,6 +7,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,12 +17,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import android.location.Location
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 import com.mobileapp.xpensa.data.Store
+import com.mobileapp.xpensa.data.UserLocation
 import com.mobileapp.xpensa.ui.PantryViewModel
 import com.mobileapp.xpensa.ui.theme.LightGreen
 import java.util.*
+import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun StoresScreen(
     viewModel: PantryViewModel,
@@ -29,6 +37,16 @@ fun StoresScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+
+    val locationPermissionState = rememberPermissionState(
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    )
+
+    LaunchedEffect(locationPermissionState.status.isGranted) {
+        if (locationPermissionState.status.isGranted) {
+            viewModel.updateLocation()
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -51,6 +69,17 @@ fun StoresScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            // Location Info Card
+            LocationStatusCard(
+                userLocation = uiState.userLocation,
+                isPermissionGranted = locationPermissionState.status.isGranted,
+                shouldShowRationale = locationPermissionState.status.shouldShowRationale,
+                onRequestPermission = { locationPermissionState.launchPermissionRequest() },
+                onRefreshLocation = { viewModel.updateLocation() }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             if (uiState.stores.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Nessun negozio salvato")
@@ -63,6 +92,7 @@ fun StoresScreen(
                     items(uiState.stores) { store ->
                         StoreItem(
                             store = store,
+                            userLocation = uiState.userLocation,
                             onDelete = { viewModel.deleteStore(store.id) }
                         )
                     }
@@ -90,10 +120,107 @@ fun StoresScreen(
 }
 
 @Composable
+fun LocationStatusCard(
+    userLocation: UserLocation?,
+    isPermissionGranted: Boolean,
+    shouldShowRationale: Boolean,
+    onRequestPermission: () -> Unit,
+    onRefreshLocation: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Posizione Attuale",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                if (isPermissionGranted) {
+                    IconButton(onClick = onRefreshLocation, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Aggiorna posizione",
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+
+            when {
+                isPermissionGranted -> {
+                    if (userLocation != null) {
+                        Text(
+                            text = "Lat: ${userLocation.latitude}, Long: ${userLocation.longitude}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        Text(
+                            text = "Recupero posizione...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
+                }
+                shouldShowRationale -> {
+                    Column {
+                        Text(
+                            text = "L'app ha bisogno della posizione per calcolare le distanze dai negozi.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Button(onClick = onRequestPermission, modifier = Modifier.padding(top = 8.dp)) {
+                            Text("Concedi Permesso")
+                        }
+                    }
+                }
+                else -> {
+                    Button(onClick = onRequestPermission) {
+                        Text("Attiva GPS")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun StoreItem(
     store: Store,
+    userLocation: UserLocation?,
     onDelete: () -> Unit
 ) {
+    val distance = remember(store, userLocation) {
+        if (userLocation != null) {
+            val results = FloatArray(1)
+            Location.distanceBetween(
+                userLocation.latitude, userLocation.longitude,
+                store.latitude, store.longitude,
+                results
+            )
+            results[0]
+        } else {
+            null
+        }
+    }
+
+    val distanceText = distance?.let {
+        if (it < 1000) {
+            "${it.roundToInt()} m"
+        } else {
+            "%.1f km".format(it / 1000f)
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -117,11 +244,22 @@ fun StoreItem(
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(
-                        text = store.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = store.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (distanceText != null) {
+                            Text(
+                                text = " • $distanceText",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                     Text(
                         text = store.address,
                         style = MaterialTheme.typography.bodyMedium,

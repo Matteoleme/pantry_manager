@@ -1,11 +1,15 @@
 package com.mobileapp.xpensa.ui
 
 import android.app.Application
+import android.annotation.SuppressLint
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.mobileapp.xpensa.data.Category
 import com.mobileapp.xpensa.data.Product
 import com.mobileapp.xpensa.data.Store
+import com.mobileapp.xpensa.data.UserLocation
 import com.mobileapp.xpensa.data.MeasurementUnit
 import com.mobileapp.xpensa.data.api.FoodFactsApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
@@ -29,6 +33,7 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
 
     private val dataStoreManager = DataStoreManager(application)
     private val json = Json { ignoreUnknownKeys = true }
+    private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
 
     private val api: FoodFactsApi by lazy {
         val logging = HttpLoggingInterceptor().apply {
@@ -312,6 +317,18 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update { it.copy(scannedEan = ean) }
     }
 
+    @SuppressLint("MissingPermission")
+    fun updateLocation() {
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { location ->
+                location?.let {
+                    _uiState.update { state ->
+                        state.copy(userLocation = UserLocation(it.latitude, it.longitude))
+                    }
+                }
+            }
+    }
+
     fun addStore(store: Store) {
         _uiState.update { state ->
             val newStores = state.stores + store
@@ -351,7 +368,8 @@ data class PantryUiState(
     val fetchError: String? = null,
     val lastScannedProduct: ScannedProduct? = null,
     val scannedEan: String? = null,
-    val stores: List<Store> = emptyList()
+    val stores: List<Store> = emptyList(),
+    val userLocation: UserLocation? = null
 ) {
     val filteredProducts: List<Product>
         get() = products.filter { product ->
