@@ -19,6 +19,7 @@ import com.mobileapp.xpensa.data.Category
 import com.mobileapp.xpensa.data.Product
 import com.mobileapp.xpensa.data.MeasurementUnit
 import com.mobileapp.xpensa.ui.PantryViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobileapp.xpensa.ui.theme.LightGreen
 import com.mobileapp.xpensa.ui.theme.LightRed
 import com.mobileapp.xpensa.ui.theme.XpensaTheme
@@ -407,10 +408,11 @@ fun CategoryDropdown(
 @Composable
 fun NewProductScreenPreview() {
     XpensaTheme {
+        val viewModel: PantryViewModel = viewModel()
         NewProductScreen(
             onNavigateBack = {},
             onNavigateToScanner = {},
-            viewModel = PantryViewModel()
+            viewModel = viewModel
         )
     }
 }

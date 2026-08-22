@@ -1,14 +1,17 @@
 package com.mobileapp.xpensa.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobileapp.xpensa.data.Category
 import com.mobileapp.xpensa.data.Product
 import com.mobileapp.xpensa.data.MeasurementUnit
 import com.mobileapp.xpensa.data.api.FoodFactsApi
+import com.mobileapp.xpensa.data.local.DataStoreManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -17,12 +20,13 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import java.util.UUID
+import java.time.LocalDate
 
-class PantryViewModel : ViewModel() {
+class PantryViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(PantryUiState())
     val uiState: StateFlow<PantryUiState> = _uiState.asStateFlow()
 
+    private val dataStoreManager = DataStoreManager(application)
     private val json = Json { ignoreUnknownKeys = true }
 
     private val api: FoodFactsApi by lazy {
@@ -42,52 +46,86 @@ class PantryViewModel : ViewModel() {
     }
 
     init {
-        // Mock data
-        _uiState.update { 
-            it.copy(
-                allCategories = Category.entries.map { c -> c.displayName },
-                products = listOf(
-                    Product(UUID.randomUUID().toString(), "Prodotto 1", Category.ALTRO.displayName, 5.0, MeasurementUnit.UNIT),
-                    Product(UUID.randomUUID().toString(), "Prodotto 2", Category.VERDURE.displayName, 2.5, MeasurementUnit.KG),
-                    Product(UUID.randomUUID().toString(), "Latte", Category.LATTICINI.displayName, 1.0, MeasurementUnit.L),
-                    Product(UUID.randomUUID().toString(), "Mele", Category.FRUTTA.displayName, 3.2, MeasurementUnit.KG)
-                )
-            )
+        loadDataFromStorage()
+    }
+
+    private fun loadDataFromStorage() {
+        viewModelScope.launch {
+            // Leggiamo tutto in un colpo solo per efficienza e sicurezza
+            try {
+                val products = dataStoreManager.productsFlow.first()
+                val categories = dataStoreManager.categoriesFlow.first()
+                val storedDailyCalories = dataStoreManager.dailyCaloriesFlow.first()
+                val lastDate = dataStoreManager.lastCaloriesDateFlow.first()
+                val showOutOfStock = dataStoreManager.showOutOfStockFlow.first()
+
+                val today = LocalDate.now().toString()
+                
+                val dailyCalories = if (lastDate != today) 0 else storedDailyCalories
+
+                val finalCategories = if (categories.isEmpty()) {
+                    Category.entries.map { it.displayName }
+                } else {
+                    categories
+                }
+
+                _uiState.update { state ->
+                    state.copy(
+                        products = products,
+                        allCategories = finalCategories,
+                        dailyCalories = dailyCalories,
+                        showOnlyOutOfStock = showOutOfStock
+                    )
+                }
+
+                if (lastDate != today) {
+                    dataStoreManager.saveDailyCalories(0, today)
+                }
+                
+                if (categories.isEmpty()) {
+                    dataStoreManager.saveCategories(finalCategories)
+                }
+            } catch (e: Exception) {
+                // In caso di errore estremo, carichiamo almeno le categorie di default
+                _uiState.update { state ->
+                    state.copy(allCategories = Category.entries.map { it.displayName })
+                }
+            }
         }
     }
 
     fun addProduct(product: Product) {
         _uiState.update { state ->
-            state.copy(products = state.products + product)
+            val newProducts = state.products + product
+            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
+            state.copy(products = newProducts)
         }
     }
 
     fun updateProduct(updatedProduct: Product) {
         _uiState.update { state ->
-            state.copy(
-                products = state.products.map { 
-                    if (it.id == updatedProduct.id) updatedProduct else it 
-                }
-            )
+            val newProducts = state.products.map { 
+                if (it.id == updatedProduct.id) updatedProduct else it 
+            }
+            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
+            state.copy(products = newProducts)
         }
     }
 
     fun consumeProducts(consumptions: Map<String, Double>): Int {
         var mealKcal = 0
+        val today = LocalDate.now().toString()
+        
         _uiState.update { state ->
             val updatedProducts = state.products.map { product ->
                 val consumeQty = consumptions[product.id] ?: 0.0
                 if (consumeQty > 0) {
-                    // Validazione: non consumare più del disponibile
                     val effectiveConsumeQty = minOf(product.quantity, consumeQty)
                     
                     val kcalContribution = product.kcal?.let { kcal ->
                         if (product.unit == MeasurementUnit.UNIT) {
-                            // Se unità: kcal per unità
                             (kcal * effectiveConsumeQty).toInt()
                         } else {
-                            // Se KG o L: assumiamo kcal riferite a 100g / 100ml
-                            // (kcal / 100) * (effectiveConsumeQty * 1000) = kcal * effectiveConsumeQty * 10
                             (kcal * effectiveConsumeQty * 10).toInt()
                         }
                     } ?: 0
@@ -97,9 +135,17 @@ class PantryViewModel : ViewModel() {
                     product
                 }
             }
+            
+            val newDailyCalories = state.dailyCalories + mealKcal
+            
+            viewModelScope.launch {
+                dataStoreManager.saveProducts(updatedProducts)
+                dataStoreManager.saveDailyCalories(newDailyCalories, today)
+            }
+
             state.copy(
                 products = updatedProducts,
-                dailyCalories = state.dailyCalories + mealKcal
+                dailyCalories = newDailyCalories
             )
         }
         return mealKcal
@@ -108,7 +154,9 @@ class PantryViewModel : ViewModel() {
     fun addCategory(categoryName: String) {
         _uiState.update { state ->
             if (categoryName.isNotBlank() && !state.allCategories.contains(categoryName)) {
-                state.copy(allCategories = state.allCategories + categoryName)
+                val newCategories = state.allCategories + categoryName
+                viewModelScope.launch { dataStoreManager.saveCategories(newCategories) }
+                state.copy(allCategories = newCategories)
             } else {
                 state
             }
@@ -117,22 +165,22 @@ class PantryViewModel : ViewModel() {
 
     fun incrementQuantity(productId: String) {
         _uiState.update { state ->
-            state.copy(
-                products = state.products.map { product ->
-                    if (product.id == productId) {
-                        val delta = if (product.unit == MeasurementUnit.UNIT) 1.0 else 0.5
-                        product.copy(quantity = product.quantity + delta)
-                    } else {
-                        product
-                    }
+            val newProducts = state.products.map { product ->
+                if (product.id == productId) {
+                    val delta = if (product.unit == MeasurementUnit.UNIT) 1.0 else 0.5
+                    product.copy(quantity = product.quantity + delta)
+                } else {
+                    product
                 }
-            )
+            }
+            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
+            state.copy(products = newProducts)
         }
     }
 
     fun decrementQuantity(productId: String) {
         _uiState.update { state ->
-            val updatedProducts = state.products.map { product ->
+            val newProducts = state.products.map { product ->
                 if (product.id == productId && product.quantity > 0) {
                     val delta = if (product.unit == MeasurementUnit.UNIT) 1.0 else 0.5
                     product.copy(quantity = maxOf(0.0, product.quantity - delta))
@@ -140,21 +188,22 @@ class PantryViewModel : ViewModel() {
                     product
                 }
             }
-            state.copy(products = updatedProducts)
+            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
+            state.copy(products = newProducts)
         }
     }
 
     fun updateQuantity(productId: String, newQuantity: Double) {
         _uiState.update { state ->
-            state.copy(
-                products = state.products.map { product ->
-                    if (product.id == productId) {
-                        product.copy(quantity = maxOf(0.0, newQuantity))
-                    } else {
-                        product
-                    }
+            val newProducts = state.products.map { product ->
+                if (product.id == productId) {
+                    product.copy(quantity = maxOf(0.0, newQuantity))
+                } else {
+                    product
                 }
-            )
+            }
+            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
+            state.copy(products = newProducts)
         }
     }
 
@@ -181,7 +230,6 @@ class PantryViewModel : ViewModel() {
             } else {
                 state.selectedCategories + category
             }
-            // Se seleziono una categoria, disattivo il filtro "Finiti"
             state.copy(selectedCategories = newCategories, showOnlyOutOfStock = false)
         }
     }
@@ -208,9 +256,9 @@ class PantryViewModel : ViewModel() {
     fun toggleOutOfStockFilter() {
         _uiState.update { state ->
             val newState = !state.showOnlyOutOfStock
+            viewModelScope.launch { dataStoreManager.saveShowOutOfStock(newState) }
             state.copy(
                 showOnlyOutOfStock = newState,
-                // Se attivo "Finiti", svuoto le categorie selezionate
                 selectedCategories = if (newState) emptySet() else state.selectedCategories
             )
         }
@@ -239,8 +287,8 @@ class PantryViewModel : ViewModel() {
                     val p = response.product
                     val scanned = ScannedProduct(
                         name = p.productName ?: "Prodotto sconosciuto",
-                        unit = MeasurementUnit.UNIT, // Default to unit
-                        category = Category.ALTRO.displayName, // Mapping categories can be complex, default to Altro
+                        unit = MeasurementUnit.UNIT,
+                        category = Category.ALTRO.displayName,
                         kcal = p.nutriments?.energyKcal100g?.toInt()
                     )
                     _uiState.update { it.copy(isFetchingProduct = false, lastScannedProduct = scanned) }
@@ -290,10 +338,8 @@ data class PantryUiState(
             val matchesSearch = product.name.contains(searchQuery, ignoreCase = true)
             
             val matchesFilters = if (showOnlyOutOfStock) {
-                // Modalità "Finiti": solo quantità <= 0
                 product.quantity <= 0.0
             } else {
-                // Modalità standard: escludi esauriti E filtra per categoria se presente
                 val isAvailable = product.quantity > 0.0
                 val matchesCategory = selectedCategories.isEmpty() || selectedCategories.contains(product.category)
                 isAvailable && matchesCategory

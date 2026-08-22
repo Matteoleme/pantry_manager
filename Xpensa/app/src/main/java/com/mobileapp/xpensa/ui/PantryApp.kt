@@ -20,10 +20,25 @@ import com.mobileapp.xpensa.ui.products.EditProductScreen
 import com.mobileapp.xpensa.ui.products.NewProductScreen
 import com.mobileapp.xpensa.ui.theme.XpensaTheme
 
+import androidx.compose.ui.platform.LocalContext
+import android.app.Application
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+
 @Composable
 fun PantryApp() {
+    val context = LocalContext.current
+    val pantryViewModel: PantryViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return PantryViewModel(context.applicationContext as Application) as T
+            }
+        }
+    )
     val backStack = rememberNavBackStack(PantryDestination.Home)
-    val pantryViewModel: PantryViewModel = viewModel()
+    // val pantryViewModel: PantryViewModel = viewModel() <--- removed this line
+
 
     val uiState by pantryViewModel.uiState.collectAsState()
 
