@@ -31,3 +31,12 @@ data class Product(
     val kcal: Int? = null,
     val ean: String? = null
 )
+
+@Serializable
+data class Store(
+    val id: String,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double
+)

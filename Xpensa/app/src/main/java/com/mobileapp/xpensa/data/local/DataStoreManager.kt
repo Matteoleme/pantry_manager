@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.mobileapp.xpensa.data.Product
+import com.mobileapp.xpensa.data.Store
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -24,6 +25,24 @@ class DataStoreManager(private val context: Context) {
         val LAST_CALORIES_DATE_KEY = stringPreferencesKey("last_calories_date")
         val SHOW_OUT_OF_STOCK_KEY = booleanPreferencesKey("show_out_of_stock")
         val LAST_SYNC_TIMESTAMP_KEY = longPreferencesKey("last_sync_timestamp")
+        val STORES_KEY = stringPreferencesKey("stores_json")
+
+        val MOCK_STORES = listOf(
+            Store(
+                id = "1",
+                name = "Todis",
+                address = "Via San Gordiano 7, Civitavecchia, Rome, Italy",
+                latitude = 42.0737,
+                longitude = 11.8160
+            ),
+            Store(
+                id = "2",
+                name = "Conad",
+                address = "Via Monsignor Giuseppe Papacchini, Civitavecchia, Rome, Italy",
+                latitude = 42.0865,
+                longitude = 11.8022
+            )
+        )
     }
 
     val productsFlow: Flow<List<Product>> = context.dataStore.data.map { preferences ->
@@ -60,6 +79,19 @@ class DataStoreManager(private val context: Context) {
         preferences[LAST_SYNC_TIMESTAMP_KEY] ?: 0L
     }
 
+    val storesFlow: Flow<List<Store>> = context.dataStore.data.map { preferences ->
+        val jsonString = preferences[STORES_KEY]
+        if (jsonString == null) {
+            MOCK_STORES
+        } else {
+            try {
+                json.decodeFromString<List<Store>>(jsonString)
+            } catch (e: Exception) {
+                MOCK_STORES
+            }
+        }
+    }
+
     suspend fun saveProducts(products: List<Product>) {
         context.dataStore.edit { preferences ->
             preferences[PRODUCTS_KEY] = json.encodeToString(products)
@@ -88,6 +120,12 @@ class DataStoreManager(private val context: Context) {
     suspend fun saveLastSyncTimestamp(timestamp: Long) {
         context.dataStore.edit { preferences ->
             preferences[LAST_SYNC_TIMESTAMP_KEY] = timestamp
+        }
+    }
+
+    suspend fun saveStores(stores: List<Store>) {
+        context.dataStore.edit { preferences ->
+            preferences[STORES_KEY] = json.encodeToString(stores)
         }
     }
 }

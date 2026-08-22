@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobileapp.xpensa.data.Category
 import com.mobileapp.xpensa.data.Product
+import com.mobileapp.xpensa.data.Store
 import com.mobileapp.xpensa.data.MeasurementUnit
 import com.mobileapp.xpensa.data.api.FoodFactsApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
@@ -58,6 +59,7 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
                 val storedDailyCalories = dataStoreManager.dailyCaloriesFlow.first()
                 val lastDate = dataStoreManager.lastCaloriesDateFlow.first()
                 val showOutOfStock = dataStoreManager.showOutOfStockFlow.first()
+                val stores = dataStoreManager.storesFlow.first()
 
                 val today = LocalDate.now().toString()
                 
@@ -74,7 +76,8 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
                         products = products,
                         allCategories = finalCategories,
                         dailyCalories = dailyCalories,
-                        showOnlyOutOfStock = showOutOfStock
+                        showOnlyOutOfStock = showOutOfStock,
+                        stores = stores
                     )
                 }
 
@@ -331,7 +334,8 @@ data class PantryUiState(
     val isFetchingProduct: Boolean = false,
     val fetchError: String? = null,
     val lastScannedProduct: ScannedProduct? = null,
-    val scannedEan: String? = null
+    val scannedEan: String? = null,
+    val stores: List<Store> = emptyList()
 ) {
     val filteredProducts: List<Product>
         get() = products.filter { product ->
