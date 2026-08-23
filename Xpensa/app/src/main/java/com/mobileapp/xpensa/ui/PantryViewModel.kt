@@ -10,8 +10,10 @@ import com.mobileapp.xpensa.data.Category
 import com.mobileapp.xpensa.data.Product
 import com.mobileapp.xpensa.data.Store
 import com.mobileapp.xpensa.data.UserLocation
+import com.mobileapp.xpensa.data.StoreSearchResult
 import com.mobileapp.xpensa.data.MeasurementUnit
 import com.mobileapp.xpensa.data.api.FoodFactsApi
+import com.mobileapp.xpensa.data.api.NominatimApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +51,22 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(FoodFactsApi::class.java)
+    }
+
+    private val nominatimApi: NominatimApi by lazy {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+
+        Retrofit.Builder()
+            .baseUrl(NominatimApi.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(NominatimApi::class.java)
     }
 
     init {
@@ -344,6 +362,43 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
             state.copy(stores = newStores)
         }
     }
+
+    fun searchStores(query: String, nearMe: Boolean) {
+        if (query.isBlank()) return
+
+        _uiState.update { it.copy(isSearchingStores = true, storeSearchError = null, storeSearchResults = emptyList()) }
+
+        viewModelScope.launch {
+            try {
+                val userLoc = if (nearMe) uiState.value.userLocation else null
+                val results = nominatimApi.search(
+                    query = query,
+                    lat = userLoc?.latitude,
+                    lon = userLoc?.longitude
+                )
+
+                if (results.isEmpty()) {
+                    _uiState.update { it.copy(isSearchingStores = false, storeSearchError = "Nessun risultato trovato") }
+                } else {
+                    val mappedResults = results.map { res ->
+                        StoreSearchResult(
+                            name = res.name ?: res.displayName.split(",").first(),
+                            address = res.displayName,
+                            latitude = res.lat.toDouble(),
+                            longitude = res.lon.toDouble()
+                        )
+                    }
+                    _uiState.update { it.updateLocationSortedSearchResults(mappedResults) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isSearchingStores = false, storeSearchError = "Errore: ${e.localizedMessage}") }
+            }
+        }
+    }
+
+    fun clearStoreSearch() {
+        _uiState.update { it.copy(storeSearchResults = emptyList(), storeSearchError = null) }
+    }
 }
 
 data class ScannedProduct(
@@ -369,8 +424,28 @@ data class PantryUiState(
     val lastScannedProduct: ScannedProduct? = null,
     val scannedEan: String? = null,
     val stores: List<Store> = emptyList(),
-    val userLocation: UserLocation? = null
+    val userLocation: UserLocation? = null,
+    val storeSearchResults: List<StoreSearchResult> = emptyList(),
+    val isSearchingStores: Boolean = false,
+    val storeSearchError: String? = null
 ) {
+    fun updateLocationSortedSearchResults(results: List<StoreSearchResult>): PantryUiState {
+        val sorted = if (userLocation != null) {
+            results.sortedBy { res ->
+                val dist = FloatArray(1)
+                android.location.Location.distanceBetween(
+                    userLocation.latitude, userLocation.longitude,
+                    res.latitude, res.longitude,
+                    dist
+                )
+                dist[0]
+            }
+        } else {
+            results
+        }
+        return copy(isSearchingStores = false, storeSearchResults = sorted)
+    }
+
     val filteredProducts: List<Product>
         get() = products.filter { product ->
             val matchesSearch = product.name.contains(searchQuery, ignoreCase = true)

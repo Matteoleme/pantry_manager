@@ -3,7 +3,6 @@ package com.mobileapp.xpensa.ui.stores
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -16,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.location.Location
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -24,6 +24,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import com.mobileapp.xpensa.data.Store
 import com.mobileapp.xpensa.data.UserLocation
+import com.mobileapp.xpensa.data.StoreSearchResult
 import com.mobileapp.xpensa.ui.PantryViewModel
 import com.mobileapp.xpensa.ui.theme.LightGreen
 import java.util.*
@@ -103,18 +104,8 @@ fun StoresScreen(
 
     if (showAddDialog) {
         AddStoreDialog(
-            onDismiss = { showAddDialog = false },
-            onConfirm = { name, address, lat, long ->
-                val newStore = Store(
-                    id = UUID.randomUUID().toString(),
-                    name = name,
-                    address = address,
-                    latitude = lat,
-                    longitude = long
-                )
-                viewModel.addStore(newStore)
-                showAddDialog = false
-            }
+            viewModel = viewModel,
+            onDismiss = { showAddDialog = false }
         )
     }
 }
@@ -285,68 +276,155 @@ fun StoreItem(
 
 @Composable
 fun AddStoreDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String, String, Double, Double) -> Unit
+    viewModel: PantryViewModel,
+    onDismiss: () -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var lat by remember { mutableStateOf("") }
-    var long by remember { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsState()
+    var query by remember { mutableStateOf("") }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Nuovo Negozio") },
+        onDismissRequest = {
+            viewModel.clearStoreSearch()
+            onDismiss()
+        },
+        title = { Text("Aggiungi Negozio") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nome *") },
-                    singleLine = true
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Nome o Indirizzo") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    label = { Text("Indirizzo *") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = lat,
-                    onValueChange = { lat = it },
-                    label = { Text("Latitudine *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = long,
-                    onValueChange = { long = it },
-                    label = { Text("Longitudine *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val l = lat.toDoubleOrNull()
-                    val g = long.toDoubleOrNull()
-                    if (name.isNotBlank() && address.isNotBlank() && l != null && g != null) {
-                        onConfirm(name, address, l, g)
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.searchStores(query, nearMe = true) },
+                        modifier = Modifier.weight(1f),
+                        enabled = query.isNotBlank() && !uiState.isSearchingStores && uiState.userLocation != null,
+                        contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) {
+                        Text("Vicino a me", style = MaterialTheme.typography.labelSmall)
                     }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = LightGreen, contentColor = Color.Black)
-            ) {
-                Text("Aggiungi")
+                    Button(
+                        onClick = { viewModel.searchStores(query, nearMe = false) },
+                        modifier = Modifier.weight(1f),
+                        enabled = query.isNotBlank() && !uiState.isSearchingStores,
+                        contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) {
+                        Text("Per Indirizzo", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                if (uiState.isSearchingStores) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
+
+                uiState.storeSearchError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+
+                if (uiState.storeSearchResults.isNotEmpty()) {
+                    Text(
+                        "Risultati:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .heightIn(max = 240.dp)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(uiState.storeSearchResults.take(3)) { result ->
+                            SearchResultItem(
+                                result = result,
+                                userLocation = uiState.userLocation,
+                                onSelect = {
+                                    val newStore = Store(
+                                        id = UUID.randomUUID().toString(),
+                                        name = result.name,
+                                        address = result.address,
+                                        latitude = result.latitude,
+                                        longitude = result.longitude
+                                    )
+                                    viewModel.addStore(newStore)
+                                    viewModel.clearStoreSearch()
+                                    onDismiss()
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
+        confirmButton = {},
         dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray)
-            ) {
+            TextButton(onClick = {
+                viewModel.clearStoreSearch()
+                onDismiss()
+            }) {
                 Text("Annulla")
             }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchResultItem(
+    result: StoreSearchResult,
+    userLocation: UserLocation?,
+    onSelect: () -> Unit
+) {
+    val distance = remember(result, userLocation) {
+        if (userLocation != null) {
+            val res = FloatArray(1)
+            Location.distanceBetween(
+                userLocation.latitude, userLocation.longitude,
+                result.latitude, result.longitude,
+                res
+            )
+            res[0]
+        } else null
+    }
+
+    val distText = distance?.let {
+        if (it < 1000) "${it.roundToInt()}m" else "%.1fkm".format(it / 1000f)
+    }
+
+    Card(
+        onClick = onSelect,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Text(
+                text = result.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = result.address,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            distText?.let {
+                Text(
+                    text = "Distanza: $it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
 }

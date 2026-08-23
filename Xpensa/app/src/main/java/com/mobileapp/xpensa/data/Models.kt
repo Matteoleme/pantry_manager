@@ -45,3 +45,10 @@ data class UserLocation(
     val latitude: Double,
     val longitude: Double
 )
+
+data class StoreSearchResult(
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double
+)
