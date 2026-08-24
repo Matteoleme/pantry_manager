@@ -17,16 +17,20 @@ The API will be available at:
 
 ## Current API
 
-get health status
+
 - `GET /health`  
-new user
+get health status  
+
 - `POST /users`  
-new pantry
+new user  
 - `POST /pantries`  
-create request to join a pantry
+new pantry
+
 - `POST /pantry-share-requests`  
-approve/reject pantry join request
+create request to join a pantry
+
 - `POST /pantry-share-requests/{request_id}/approve`
 - `POST /pantry-share-requests/{request_id}/reject`  
+approve/reject pantry join request
 
 - ``
