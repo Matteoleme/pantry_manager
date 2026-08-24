@@ -5,28 +5,6 @@
 - SQLAlchemy ORM
 - Docker Compose
 
-## Database schema
-
-### users
-
-| Column | Type | Constraints |
--------------------------------
-| id | integer | primary key, auto-increment |
-| name | varchar(255) | not null |
-| username | varchar(100) | not null, unique |
-| password | varchar(255) | not null |
-| token_share | varchar(255) | not null |
-
-### pantry
-
-| Column | Type | Constraints |
--------------------------------
-| id | integer | primary key, auto-increment |
-| creator | integer | not null, foreign key → users.id |
-| token_share | varchar(255) | not null, unique |
-
-`creator` is indexed as part of the foreign-key relationship.
-
 ## Run
 ```bash
 docker compose up --build
@@ -39,8 +17,16 @@ The API will be available at:
 
 ## Current API
 
-- `GET /health`
-- `POST /users`
-- `GET /users/{user_id}`
-- `POST /pantries`
+get health status
+- `GET /health`  
+new user
+- `POST /users`  
+new pantry
+- `POST /pantries`  
+create request to join a pantry
+- `POST /pantry-share-requests`  
+approve/reject pantry join request
+- `POST /pantry-share-requests/{request_id}/approve`
+- `POST /pantry-share-requests/{request_id}/reject`  
 
+- ``
