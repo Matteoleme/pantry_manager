@@ -117,14 +117,17 @@ fun EditProductScreen(
             isError = !isNameValid && name.isNotEmpty()
         )
 
+        var deltaAmount by remember { mutableStateOf("1") }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = quantity,
                 onValueChange = { quantity = it },
-                label = { Text("Quantità *") },
+                label = { Text("Quantità Totale *") },
                 modifier = Modifier.weight(1f),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = if (selectedUnit == MeasurementUnit.UNIT) KeyboardType.Number else KeyboardType.Decimal
@@ -138,6 +141,78 @@ fun EditProductScreen(
                 onUnitSelected = { selectedUnit = it },
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        // Sezione per aggiungere/togliere quantità velocemente
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Modifica rapida quantità",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = deltaAmount,
+                        onValueChange = { deltaAmount = it },
+                        label = { Text("Quantità da variare") },
+                        modifier = Modifier.weight(1.2f),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = if (selectedUnit == MeasurementUnit.UNIT) KeyboardType.Number else KeyboardType.Decimal
+                        ),
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium
+                    )
+
+                    Button(
+                        onClick = {
+                            val current = quantity.toDoubleOrNull() ?: 0.0
+                            val delta = deltaAmount.toDoubleOrNull() ?: 0.0
+                            val result = (current - delta).coerceAtLeast(0.0)
+                            quantity = if (selectedUnit == MeasurementUnit.UNIT) result.toInt().toString() else result.toString()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = LightRed, contentColor = Color.Black),
+                        modifier = Modifier
+                            .height(56.dp)
+                            .weight(0.4f),
+                        shape = MaterialTheme.shapes.medium,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("-", style = MaterialTheme.typography.headlineSmall)
+                    }
+
+                    Button(
+                        onClick = {
+                            val current = quantity.toDoubleOrNull() ?: 0.0
+                            val delta = deltaAmount.toDoubleOrNull() ?: 0.0
+                            val result = current + delta
+                            quantity = if (selectedUnit == MeasurementUnit.UNIT) result.toInt().toString() else result.toString()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = LightGreen, contentColor = Color.Black),
+                        modifier = Modifier
+                            .height(56.dp)
+                            .weight(0.4f),
+                        shape = MaterialTheme.shapes.medium,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("+", style = MaterialTheme.typography.headlineSmall)
+                    }
+                }
+            }
         }
 
         CategoryDropdown(
