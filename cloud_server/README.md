@@ -21,11 +21,15 @@ The API will be available at:
 - `GET /health`  
 get health status  
 
+- `POST /auth/register`
+- `POST /auth/login`  
+register / login user  
+
 - `POST /users`  
 new user  (DELETED)
 
 - `POST /pantries`  
-new pantry 
+new pantry  (DELETED)
 
 - `GET /pantry`  
 retrieve pantry
@@ -39,11 +43,7 @@ get back to your own local pantry (exit shared pantry)
 
 - `POST /pantry-share-requests/{request_id}/approve`
 - `POST /pantry-share-requests/{request_id}/reject`  
-approve/reject pantry join request
-
-- `POST /auth/register`
-- `POST /auth/login`  
-register and login user  
+approve / reject pantry join request
 
 - `GET /categories`  
 list all categories in your current pantry 
@@ -52,9 +52,9 @@ list all categories in your current pantry
 create new category
 <!--EX. { "name": "breakfast" } -->  
 
-
 - `POST /products`  
 create new product  
+
 
 
 - TODO
@@ -74,10 +74,10 @@ GET daily statistics from events
 <!-- add "local" field to user for changing pantry -->
 <!-- modify request share based by username of pantry creator -->
 modify jwt expiration to unlimited
-add standard categories by default on pantry creation (meat, drinks, vegetables, fish, others)
-only call pantry creation at user registration
+<!-- add standard categories by default on pantry creation (dairy, fruit, vegetables, meat, drinks, other) -->
+<!-- only call pantry creation at user registration -->
 
-send notification on reaching kcal_threshold
+send notification on reaching kcal_threshold (if != 0)
 <!-- send notification on request share pantry -->
  
 when doing something on main page, return updated pantry with list of products 
