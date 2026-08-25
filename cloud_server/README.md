@@ -25,12 +25,6 @@ get health status
 - `POST /auth/login`  
 register / login user  
 
-- `POST /users`  
-new user  (DELETED)
-
-- `POST /pantries`  
-new pantry  (DELETED)
-
 - `GET /pantry`  
 retrieve pantry
 
@@ -55,6 +49,12 @@ create new category
 - `POST /products`  
 create new product  
 
+
+- `POST /users`  
+new user  (DELETED)
+
+- `POST /pantries`  
+new pantry  (DELETED)  
 
 
 - TODO

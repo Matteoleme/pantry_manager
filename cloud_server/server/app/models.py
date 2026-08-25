@@ -15,7 +15,7 @@ class User(Base):
     token_share: Mapped[str] = mapped_column(String(260), nullable=False)
     own_token_share: Mapped[str] = mapped_column(String(260), nullable=False)
     fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    local: Mapped[bool] = map(Boolean, nullable=False, default=True)
+    local: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     pantries: Mapped[list["Pantry"]] = relationship(
         back_populates="creator_user",
@@ -123,7 +123,7 @@ class Product(Base):
     )
 
     pantry: Mapped[Pantry] = relationship(
-        back_polulates="products"
+        back_populates="products"
     )
 
 
