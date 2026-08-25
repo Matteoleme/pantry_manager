@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, Numeric, String, ForeignKeyConstraint, DateTime
+from sqlalchemy import ForeignKey, Integer, Numeric, String, Boolean, ForeignKeyConstraint, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from decimal import Decimal
 from datetime import datetime
@@ -13,7 +13,9 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     token_share: Mapped[str] = mapped_column(String(260), nullable=False)
+    own_token_share: Mapped[str] = mapped_column(String(260), nullable=False)
     fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    local: Mapped[bool] = map(Boolean, nullable=False, default=True)
 
     pantries: Mapped[list["Pantry"]] = relationship(
         back_populates="creator_user",

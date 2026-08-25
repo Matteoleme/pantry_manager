@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     token_share VARCHAR(260) NOT NULL,
-    fcm_token VARCHAR(512)
+    own_token_share VARCHAR(260) NOT NULL,
+    fcm_token VARCHAR(512),
+    local BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- PANTRY

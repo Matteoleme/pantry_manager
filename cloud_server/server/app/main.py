@@ -71,12 +71,14 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         payload.username,
         payload.password,
     )
+    own_token_share = token_share
 
     user = User(
         name=payload.name,
         username=payload.username,
         password=hash_password(payload.password),
         token_share=token_share,
+        own_token_share = own_token_share,
     )
 
     db.add(user)
@@ -380,8 +382,9 @@ def approve_pantry_request(request_id: int, current_user: User = Depends(get_cur
             detail="Requesting user not found",
         )
 
-    # ADD user to this pantry and update status of request
+    # ADD user to this pantry, update status of request, update 'local'field in user to False
     requesting_user.token_share = pantry.token_share
+    requesting_user.local = False
     request.status = "accepted"
 
     db.commit()
@@ -429,6 +432,42 @@ def reject_pantry_request(request_id: int, current_user: User = Depends(get_curr
     db.refresh(request)
 
     return request
+
+########## PANTRY Leave shared pantry ##########
+@app.post("/pantry/leave")
+def leave_shared_pantry(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # User is already in their own pantry.
+    if current_user.local:
+        raise HTTPException(
+            status_code=400,
+            detail="You are already in your own pantry",
+        )
+
+    # The original pantry must exist.
+    if not current_user.own_token_share:
+        raise HTTPException(
+            status_code=500,
+            detail="Original pantry information is missing",
+        )
+
+    # Restore the user's own pantry.
+    current_user.token_share = current_user.own_token_share
+    current_user.local = True
+
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "status": "ok",
+        "message": "Returned to your own pantry",
+        "local": current_user.local,
+    }
+
+########## PANTRY Categories retrieve ##########
+
 
 ########## PANTRY Category create ##########
 @app.post(
