@@ -34,6 +34,29 @@ class UserResponse(BaseModel):
     username: str
     #token_share: str
 
+#################################### PRODUCTS ########################
+class ProductCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100,)
+    EAN: str | None = Field(default=None, max_length=15,)
+    unit: str = Field(min_length=1, max_length=10,)
+    quantity: Decimal = Field(default=Decimal("0"),)
+    category: str = Field(min_length=1, max_length=50,)
+    kcal: int = Field(default=0,)
+    #token_share: str = Field(min_length=1, max_length=260,)
+
+
+class ProductResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    EAN: str | None
+    unit: str
+    quantity: Decimal
+    category: str
+    kcal: int
+    #token_share: str
+    
 #################################### PANTRY ########################
 class PantryCreate(BaseModel):
     #creator: int
@@ -75,29 +98,6 @@ class CategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     name: str
-    token_share: str
-
-#################################### PRODUCTS ########################
-class ProductCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=100,)
-    EAN: str | None = Field(default=None, max_length=15,)
-    unit: str = Field(min_length=1, max_length=10,)
-    quantity: Decimal = Field(default=Decimal("0"),)
-    category: str = Field(min_length=1, max_length=50,)
-    kcal: int = Field(default=0,)
-    #token_share: str = Field(min_length=1, max_length=260,)
-
-
-class ProductResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    EAN: str | None
-    unit: str
-    quantity: Decimal
-    category: str
-    kcal: int
     #token_share: str
 
 #################################### EVENTS ########################

@@ -25,14 +25,14 @@ get health status
 new user  (DELETED)
 
 - `POST /pantries`  
-new pantry
+new pantry 
 
 - `GET /pantry`  
 retrieve pantry
 
 - `POST /pantry-share-requests`  
 create request to join a pantry
-<!-- { "username": "alice11" } -->  
+<!--EX. { "username": "alice11" } -->  
 
 - `POST /pantry/leave`  
 get back to your own local pantry (exit shared pantry)  
@@ -50,7 +50,7 @@ list all categories in your current pantry
 
 - `POST /categories`  
 create new category
-<!-- { "name": "breakfast" } -->  
+<!--EX. { "name": "breakfast" } -->  
 
 
 - `POST /products`  
@@ -75,7 +75,7 @@ GET daily statistics from events
 <!-- modify request share based by username of pantry creator -->
 modify jwt expiration to unlimited
 add standard categories by default on pantry creation (meat, drinks, vegetables, fish, others)
-modify pantry creation at user registering
+only call pantry creation at user registration
 
 send notification on reaching kcal_threshold
 <!-- send notification on request share pantry -->

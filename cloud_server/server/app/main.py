@@ -8,6 +8,8 @@ from .models import (
     Pantry,
     PantryShareRequest,
     User,
+    Category,
+    Product,
 )
 from .schemas import (
     EventCreate,
@@ -19,6 +21,13 @@ from .schemas import (
     UserCreate,
     UserResponse,
     DeviceTokenUpdate,
+    CategoryCreate,
+    CategoryResponse,
+    ProductCreate,
+    ProductResponse,
+    TokenResponse,
+    LoginRequest,
+
 )
 from .notifications import (
     send_pantry_share_notification,
@@ -202,7 +211,7 @@ def update_device_token(
 def create_pantry(payload: PantryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     #user = db.get(User, user_id)
 
-    if user is None:
+    if current_user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found",
@@ -467,7 +476,24 @@ def leave_shared_pantry(
     }
 
 ########## PANTRY Categories retrieve ##########
+@app.get(
+    "/categories",
+    response_model=list[CategoryResponse],
+)
+def get_categories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    categories = (
+        db.query(Category)
+        .filter(
+            Category.token_share == current_user.token_share
+        )
+        .order_by(Category.name)
+        .all()
+    )
 
+    return categories
 
 ########## PANTRY Category create ##########
 @app.post(
