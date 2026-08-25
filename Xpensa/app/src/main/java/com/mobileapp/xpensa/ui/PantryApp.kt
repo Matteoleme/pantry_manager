@@ -23,12 +23,31 @@ import com.mobileapp.xpensa.ui.theme.XpensaTheme
 
 import androidx.compose.ui.platform.LocalContext
 import android.app.Application
+import android.os.Build
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PantryApp() {
     val context = LocalContext.current
+
+    // Gestione permesso notifiche per Android 13+ tramite Accompanist
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val notificationPermissionState = rememberPermissionState(
+            android.Manifest.permission.POST_NOTIFICATIONS
+        )
+        if (!notificationPermissionState.status.isGranted) {
+            LaunchedEffect(Unit) {
+                notificationPermissionState.launchPermissionRequest()
+            }
+        }
+    }
+
     val pantryViewModel: PantryViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

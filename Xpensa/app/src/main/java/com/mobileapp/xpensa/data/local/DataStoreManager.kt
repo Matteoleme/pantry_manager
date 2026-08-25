@@ -26,6 +26,7 @@ class DataStoreManager(private val context: Context) {
         val SHOW_OUT_OF_STOCK_KEY = booleanPreferencesKey("show_out_of_stock")
         val LAST_SYNC_TIMESTAMP_KEY = longPreferencesKey("last_sync_timestamp")
         val STORES_KEY = stringPreferencesKey("stores_json")
+        val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token")
 
         val MOCK_STORES = listOf(
             Store(
@@ -79,6 +80,10 @@ class DataStoreManager(private val context: Context) {
         preferences[LAST_SYNC_TIMESTAMP_KEY] ?: 0L
     }
 
+    val fcmTokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[FCM_TOKEN_KEY]
+    }
+
     val storesFlow: Flow<List<Store>> = context.dataStore.data.map { preferences ->
         val jsonString = preferences[STORES_KEY]
         if (jsonString == null) {
@@ -120,6 +125,12 @@ class DataStoreManager(private val context: Context) {
     suspend fun saveLastSyncTimestamp(timestamp: Long) {
         context.dataStore.edit { preferences ->
             preferences[LAST_SYNC_TIMESTAMP_KEY] = timestamp
+        }
+    }
+
+    suspend fun saveFcmToken(token: String) {
+        context.dataStore.edit { preferences ->
+            preferences[FCM_TOKEN_KEY] = token
         }
     }
 
