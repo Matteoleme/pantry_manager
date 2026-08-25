@@ -21,3 +21,9 @@ JWT_EXPIRE_MINUTES = int(
         "60",
     )
 )
+
+###### firebase notifications - config #######
+FIREBASE_CREDENTIALS_FILE = os.getenv(
+    "FIREBASE_CREDENTIALS_FILE",
+    "/run/secrets/firebase-service-account.json",
+)

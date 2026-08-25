@@ -43,8 +43,9 @@ approve/reject pantry join request
 - `POST /auth/login`  
 register and login user  
 
-- `GET /categories`  TODO<!---->
+- `GET /categories`  
 list all categories  
+TODO<!---->
 
 - `POST /categories`  
 create new category
@@ -74,4 +75,4 @@ modify jwt expiration to unlimited
 add standard categories by default on pantry creation (meat, drinks, vegetables, fish, others)
 
 send notification on reaching kcal_threshold
-send notification on request share pantry
+<!-- send notification on request share pantry -->

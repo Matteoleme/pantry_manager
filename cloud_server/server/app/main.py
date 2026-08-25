@@ -18,6 +18,7 @@ from .schemas import (
     PantryShareRequestResponse,
     UserCreate,
     UserResponse,
+    DeviceTokenUpdate,
 )
 from .notifications import (
     send_pantry_share_notification,
