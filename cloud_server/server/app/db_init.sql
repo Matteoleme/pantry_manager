@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     username VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    token_share VARCHAR(260) NOT NULL
+    token_share VARCHAR(260) NOT NULL,
+    fcm_token VARCHAR(512)
 );
 
 -- PANTRY
@@ -64,8 +65,9 @@ CREATE TABLE IF NOT EXISTS products (
     name VARCHAR(100) NOT NULL,
     "EAN" VARCHAR(15),
     unit VARCHAR(10) NOT NULL,
-    quantity INTEGER NOT NULL DEFAULT 0,
+    quantity NUMERIC(12,3) NOT NULL DEFAULT 0.0,
     category VARCHAR(50) NOT NULL,
+    kcal INTEGER NOT NULL DEFAULT 0,
     token_share VARCHAR(260) NOT NULL,
 
     CONSTRAINT chk_unit
@@ -87,7 +89,7 @@ CREATE TABLE IF NOT EXISTS events (
     product_id INTEGER NOT NULL,
     event_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     kcal INTEGER NOT NULL DEFAULT 0,
-    quantity INTEGER NOT NULL,
+    quantity NUMERIC(12,3) NOT NULL,
     unit VARCHAR(10) NOT NULL,
 
     CONSTRAINT fk_events_pantry

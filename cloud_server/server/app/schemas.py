@@ -1,6 +1,23 @@
 from pydantic import BaseModel, ConfigDict, Field
+from decimal import Decimal
 from datetime import datetime
 
+######################## LOGIN AUTH with JWT ########################
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+######################## DEVICE Registration for notifications (firebase) ########################
+class DeviceTokenUpdate(BaseModel):
+    fcm_token: str = Field(
+        min_length=1,
+        max_length=512,
+    )
 
 #################################### USERS ########################
 class UserCreate(BaseModel):
@@ -28,12 +45,16 @@ class PantryResponse(BaseModel):
 
     id: int
     creator: int
-    token_share: str
+    #token_share: str
     kcal_threshold: int
+
+    #list of products in the response
+    products: list[ProductResponse] = Field(default_factory=list)
 
 #################################### PANTRY SHARING ########################
 class PantryShareRequestCreate(BaseModel):
-    token_share: str = Field(min_length=1, max_length= 260)
+    #token_share: str = Field(min_length=1, max_length= 260)
+    username: str = Field(min_length=1, max_length=100)
 
 class PantryShareRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -61,8 +82,9 @@ class ProductCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100,)
     EAN: str | None = Field(default=None, max_length=15,)
     unit: str = Field(min_length=1, max_length=10,)
-    quantity: int = Field(default=0,)
+    quantity: Decimal = Field(default=Decimal("0"),)
     category: str = Field(min_length=1, max_length=50,)
+    kcal: int = Field(default=0,)
     #token_share: str = Field(min_length=1, max_length=260,)
 
 
@@ -73,9 +95,10 @@ class ProductResponse(BaseModel):
     name: str
     EAN: str | None
     unit: str
-    quantity: int
+    quantity: Decimal
     category: str
-    token_share: str
+    kcal: int
+    #token_share: str
 
 #################################### EVENTS ########################
 class EventCreate(BaseModel):
@@ -83,7 +106,7 @@ class EventCreate(BaseModel):
     product_id: int
     event_date: datetime
     kcal: int = Field(default=0)
-    quantity: int
+    quantity: Decimal
     unit: str = Field(min_length=1, max_length=10)
 
 class EventResponse(BaseModel):
@@ -94,5 +117,5 @@ class EventResponse(BaseModel):
     product_id: int
     event_date: datetime
     kcal: int
-    quantity: int
+    quantity: Decimal
     unit: str

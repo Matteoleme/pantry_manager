@@ -1,5 +1,6 @@
-from sqlalchemy import ForeignKey, Integer, String, ForeignKeyConstraint, DateTime
+from sqlalchemy import ForeignKey, Integer, Numeric, String, ForeignKeyConstraint, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from decimal import Decimal
 from datetime import datetime
 from .database import Base
 
@@ -12,6 +13,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     token_share: Mapped[str] = mapped_column(String(260), nullable=False)
+    fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     pantries: Mapped[list["Pantry"]] = relationship(
         back_populates="creator_user",
@@ -44,6 +46,11 @@ class Pantry(Base):
         default=0,
     )
 
+    ###### get the associated list of products
+    products: Mapped[list["Product"]] = relationship(
+        back_populates="pantry",
+    )
+
     creator_user: Mapped[User] = relationship(
         back_populates="pantries",
     )
@@ -58,7 +65,7 @@ class PantryShareRequest(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     pantry_id: Mapped[int] = mapped_column(Integer, ForeignKey("pantry.id"), nullable=False, index=True)
-    requesting_user_id: Mapped[int] = mapped_column(Integer,ForeignKey("users.id"), nullable=False,index=True)
+    requesting_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False,index=True)
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
@@ -97,8 +104,9 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     EAN: Mapped[str] = mapped_column(String(15), nullable=True)
     unit: Mapped[str] = mapped_column(String(10), nullable=False)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12,3), nullable=False, default=0.0)
     category: Mapped[str] = mapped_column(String(50), nullable=False)
+    kcal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     token_share: Mapped[str] = mapped_column(
         String(260),
         ForeignKey("pantry.token_share"),
@@ -110,6 +118,10 @@ class Product(Base):
             ["category", "token_share"],
             ["categories.name", "categories.token_share"],
         ),
+    )
+
+    pantry: Mapped[Pantry] = relationship(
+        back_polulates="products"
     )
 
 
@@ -129,5 +141,5 @@ class Event(Base):
     )
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     kcal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12,3), nullable=False)
     unit: Mapped[str] = mapped_column(String(10), nullable=False)

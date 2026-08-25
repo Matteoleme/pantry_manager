@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from .database import Base, engine, get_db
 from .models import (
@@ -18,9 +19,17 @@ from .schemas import (
     UserCreate,
     UserResponse,
 )
+from .notifications import (
+    send_pantry_share_notification,
+)
+
+#### security and user authentication
+from .auth import get_current_user
 from .security import (
+    create_access_token,
     generate_initial_token_share,
     hash_password,
+    verify_password,
 )
 
 #create DB
@@ -37,8 +46,83 @@ def health():
     return {"status": "ok"}
 
 
+########## USER registration ##########
+@app.post(
+    "/auth/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register(payload: UserCreate, db: Session = Depends(get_db)):
+    existing_user = (
+        db.query(User)
+        .filter(User.username == payload.username)
+        .first()
+    )
 
-########## USER Creation ##########
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Username already exists",
+        )
+
+    token_share = generate_initial_token_share(
+        payload.name,
+        payload.username,
+        payload.password,
+    )
+
+    user = User(
+        name=payload.name,
+        username=payload.username,
+        password=hash_password(payload.password),
+        token_share=token_share,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+########## USER login ##########
+@app.post(
+    "/auth/login",
+    response_model=TokenResponse,
+)
+def login(
+    payload: LoginRequest,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(User)
+        .filter(User.username == payload.username)
+        .first()
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    if not verify_password(
+        payload.password,
+        user.password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    access_token = create_access_token(user.id)
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+    )
+
+########## USER Creation ########## !!!!!! deprecated
+'''
 @app.post(
     "/users",
     response_model=UserResponse,
@@ -76,30 +160,9 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     db.refresh(user)
 
     return user
+'''
 
 '''
-@app.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(payload: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.username == payload.username).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Username already exists",
-        )
-
-    user = User(
-        name=payload.name,
-        username=payload.username,
-        password=hash_password(payload.password),
-        token_share=payload.token_share,
-    )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
 @app.get("/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.get(User, user_id)
@@ -111,14 +174,30 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return user
 '''
 
+########## USER DEVICE Registration (notifications with firebase) ##########
+@app.put("/users/me/device")
+def update_device_token(
+    payload: DeviceTokenUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.fcm_token = payload.fcm_token
+
+    db.commit()
+
+    return {
+        "status": "ok",
+    }
+
+
 ########## PANTRY Creation ##########
 @app.post(
     "/pantries",
     response_model=PantryResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_pantry(payload: PantryCreate, user_id: int, db: Session = Depends(get_db)):
-    user = db.get(User, user_id)
+def create_pantry(payload: PantryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    #user = db.get(User, user_id)
 
     if user is None:
         raise HTTPException(
@@ -127,8 +206,8 @@ def create_pantry(payload: PantryCreate, user_id: int, db: Session = Depends(get
         )
 
     pantry = Pantry(
-        creator=user.id,
-        token_share=user.token_share,
+        creator=current_user.id,
+        token_share=current_user.token_share,
         kcal_threshold=payload.kcal_threshold,
     )
 
@@ -138,26 +217,32 @@ def create_pantry(payload: PantryCreate, user_id: int, db: Session = Depends(get
 
     return pantry
 
-'''
-@app.post("/pantries", response_model=PantryResponse, status_code=status.HTTP_201_CREATED)
-def create_pantry(payload: PantryCreate, db: Session = Depends(get_db)):
-    creator = db.get(User, payload.creator)
-    if creator is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Creator user not found",
+########## PANTRY Retrieve ##########
+@app.get(
+    "/pantry",
+    response_model=PantryResponse,
+)
+def get_my_pantry(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pantry = (
+        db.query(Pantry)
+        .filter(
+            Pantry.token_share == current_user.token_share
         )
-
-    pantry = Pantry(
-        creator=payload.creator,
-        token_share=payload.token_share,
+        .first()
     )
 
-    db.add(pantry)
-    db.commit()
-    db.refresh(pantry)
+    if pantry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No pantry associated with this user",
+        )
+
+    ### to retrieve all products: pantry.products
+
     return pantry
-'''
 
 ########## PANTRY JOIN REQUEST Creation ##########
 @app.post(
@@ -165,38 +250,48 @@ def create_pantry(payload: PantryCreate, db: Session = Depends(get_db)):
     response_model=PantryShareRequestResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def request_pantry_access(payload: PantryShareRequestCreate, user_id: int, db: Session = Depends(get_db)):
-    user = db.get(User, user_id)
-
-    if user is None:
+def request_pantry_access(payload: PantryShareRequestCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    #find pantry owner by username
+    owner = (db.query(User).filter(User.username == payload.username).first())
+    if owner is None:
         raise HTTPException(
             status_code=404,
             detail="User not found",
         )
 
+    #do not insert your own username
+    if owner.id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot request access to your own pantry",
+        )
+
+    #find pantry by owner
     pantry = (
         db.query(Pantry)
-        .filter(Pantry.token_share == payload.token_share)
+        .filter(Pantry.token_share == owner.token_share)
         .first()
     )
 
     if pantry is None:
         raise HTTPException(
             status_code=404,
-            detail="Pantry not found",
+            detail="Pantry not found, wrong creator username",
         )
 
-    if user.token_share == pantry.token_share:
+    #check if i am already into the pantry
+    if current_user.token_share == pantry.token_share:
         raise HTTPException(
             status_code=400,
-            detail="User is already associated with this pantry",
+            detail="you are already associated with this pantry",
         )
 
+    #check for existing issued request
     existing_request = (
         db.query(PantryShareRequest)
         .filter(
             PantryShareRequest.pantry_id == pantry.id,
-            PantryShareRequest.requesting_user_id == user.id,
+            PantryShareRequest.requesting_user_id == current_user.id,
             PantryShareRequest.status == "pending",
         )
         .first()
@@ -210,22 +305,34 @@ def request_pantry_access(payload: PantryShareRequestCreate, user_id: int, db: S
 
     request = PantryShareRequest(
         pantry_id=pantry.id,
-        requesting_user_id=user.id,
+        requesting_user_id=current_user.id,
         status="pending",
+        created_at=datetime.now(),
     )
 
     db.add(request)
     db.commit()
     db.refresh(request)
 
+    ######################## fire notification to creator ############
+    if owner.fcm_token:
+        try:
+            send_pantry_share_notification(
+                fcm_token=owner.fcm_token,
+                request_id=request.id,
+                requester_name=current_user.name,
+            )
+        except Exception as exc:
+            print(f"failed to send FCM notification: {exc}")
+
     return request
 
-########## PANTRY JOIN REQUEST Approving ##########
+########## PANTRY JOIN REQUEST Approve ##########
 @app.post(
     "/pantry-share-requests/{request_id}/approve",
     response_model=PantryShareRequestResponse,
 )
-def approve_pantry_request(request_id: int, creator_id: int, db: Session = Depends(get_db)):
+def approve_pantry_request(request_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     request = db.get(
         PantryShareRequest,
         request_id,
@@ -254,7 +361,7 @@ def approve_pantry_request(request_id: int, creator_id: int, db: Session = Depen
             detail="Pantry not found",
         )
 
-    if pantry.creator != creator_id:
+    if pantry.creator != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Only the pantry creator can approve requests",
@@ -264,6 +371,7 @@ def approve_pantry_request(request_id: int, creator_id: int, db: Session = Depen
         User,
         request.requesting_user_id,
     )
+    
 
     if requesting_user is None:
         raise HTTPException(
@@ -271,9 +379,8 @@ def approve_pantry_request(request_id: int, creator_id: int, db: Session = Depen
             detail="Requesting user not found",
         )
 
-    # The actual membership change happens here.
+    # ADD user to this pantry and update status of request
     requesting_user.token_share = pantry.token_share
-
     request.status = "accepted"
 
     db.commit()
@@ -281,12 +388,12 @@ def approve_pantry_request(request_id: int, creator_id: int, db: Session = Depen
 
     return request
 
-########## PANTRY JOIN REQUEST Rejecting ##########
+########## PANTRY JOIN REQUEST Reject ##########
 @app.post(
     "/pantry-share-requests/{request_id}/reject",
     response_model=PantryShareRequestResponse,
 )
-def reject_pantry_request(request_id: int, creator_id: int, db: Session = Depends(get_db)):
+def reject_pantry_request(request_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     request = db.get(
         PantryShareRequest,
         request_id,
@@ -309,12 +416,12 @@ def reject_pantry_request(request_id: int, creator_id: int, db: Session = Depend
             detail="Pantry not found",
         )
 
-    if pantry.creator != creator_id:
+    if pantry.creator != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Only the pantry creator can reject requests",
         )
-
+    # REJECT request
     request.status = "rejected"
 
     db.commit()
@@ -322,5 +429,125 @@ def reject_pantry_request(request_id: int, creator_id: int, db: Session = Depend
 
     return request
 
-########## PANTRY  ##########
+########## PANTRY Category create ##########
+@app.post(
+    "/categories",
+    response_model=CategoryResponse,
+)
+def create_category(
+    payload: CategoryCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pantry = (
+        db.query(Pantry)
+        .filter(
+            Pantry.token_share == current_user.token_share
+        )
+        .first()
+    )
+
+    if pantry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No pantry associated with this user",
+        )
+
+    category = Category(
+        name=payload.name,
+        token_share=current_user.token_share,
+    )
+
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+
+    return category
+
+########## PANTRY Product create ##########
+@app.post(
+    "/products",
+    response_model=ProductResponse,
+)
+def create_product(
+    payload: ProductCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    category = (
+        db.query(Category)
+        .filter(
+            Category.name == payload.category,
+            Category.token_share == current_user.token_share,
+        )
+        .first()
+    )
+
+    if category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found",
+        )
+
+    product = Product(
+        name=payload.name,
+        EAN=payload.EAN,
+        unit=payload.unit,
+        quantity=payload.quantity,
+        category=payload.category,
+        kcal=payload.kcal,
+        token_share=current_user.token_share,
+    )
+
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+
+    return product
+
+
+########## Event create ##########
+@app.post(
+    "/events",
+    response_model=EventResponse,
+)
+def create_event(
+    payload: EventCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == payload.product_id,
+            Product.token_share == current_user.token_share,
+        )
+        .first()
+    )
+
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    event = Event(
+        token_share=current_user.token_share,
+        product_id=payload.product_id,
+        #category=payload.category,
+        event_date=payload.event_date,
+        kcal=payload.kcal,
+        quantity=payload.quantity,
+        unit=payload.unit,
+    )
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+
+    return event
+
+##########  ##########
+
+
 
