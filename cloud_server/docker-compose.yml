@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: ./server
+    container_name: pantry_api
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./server/app:/app/app
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18
+    container_name: pantry_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+# TODO
+  server:
+    build: ./server
+    environment:
+      DATABASE_URL: postgresql://pantry:pantry123!@postgres:5432/pantry
+      JWT_SECRET_KEY: Pantry123!
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-service-account.json
+
+    volumes:
+      - ./firebase/service-account.json:/run/secrets/firebase-service-account.json:ro
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+##
+
+volumes:
+  postgres_data:
