@@ -16,6 +16,10 @@ from .models import (
 from .schemas import (
     EventCreate,
     EventProduct,
+    CategoryKcalPercentage,
+    DailyKcalStats,
+    MonthStatsResponse,
+    DayStatsResponse,
     PantryCreate,
     PantryResponse,
     PantryShareRequestCreate,
@@ -627,6 +631,7 @@ def create_event(
             kcal=event_kcal,
             quantity=requested_quantity,
             unit=product.unit,
+            category=product.category,
         )
         db.add(event)
 
@@ -703,91 +708,196 @@ def create_event(
 
 ########## STATISTICS on kcal ##########
 
-### DAILY ###
+### DAILY with categories ###
+@app.get(
+    "/stats/day",
+    response_model=DayStatsResponse,
+)
+def get_day_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pantry = get_current_pantry(
+        current_user,
+        db,
+    )
 
+    # --------------------------------------------------------
+    # Current day
+    # --------------------------------------------------------
+
+    today = datetime.now(timezone.utc).date()
+
+    start = datetime.combine(
+        today,
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+    end = start + timedelta(days=1)
+
+    # --------------------------------------------------------
+    # Total kcal
+    # --------------------------------------------------------
+
+    total_kcal = (
+        db.query(
+            func.coalesce(
+                func.sum(Event.kcal),
+                0,
+            )
+        )
+        .filter(
+            Event.token_share == pantry.token_share,
+            Event.event_date >= start,
+            Event.event_date < end,
+        )
+        .scalar()
+    )
+
+    total_kcal = Decimal(total_kcal)
+
+    # --------------------------------------------------------
+    # Kcal grouped by category
+    # --------------------------------------------------------
+
+    category_results = (
+        db.query(
+            Event.category,
+            func.sum(Event.kcal).label("kcal"),
+        )
+        .filter(
+            Event.token_share == pantry.token_share,
+            Event.event_date >= start,
+            Event.event_date < end,
+        )
+        .group_by(Event.category)
+        .order_by(Event.category)
+        .all()
+    )
+
+    categories = []
+
+    for row in category_results:
+        category_kcal = Decimal(row.kcal)
+
+        if total_kcal > 0:
+            percentage = (
+                category_kcal
+                / total_kcal
+                * Decimal("100")
+            )
+        else:
+            percentage = Decimal("0")
+
+        categories.append(
+            CategoryKcalPercentage(
+                category=row.category,
+                kcal=category_kcal,
+                percentage=percentage.quantize(
+                    Decimal("0.01")
+                ),
+            )
+        )
+
+    return DayStatsResponse(
+        date=today,
+        total_kcal=total_kcal,
+        threshold=pantry.kcal_threshold,
+        categories=categories,
+    )
 
 ### MONTHLY ###
-
-
-
-########## USER Creation ########## !!!!!! deprecated
-'''
-@app.post(
-    "/users",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
+@app.get(
+    "/stats/month",
+    response_model=MonthStatsResponse,
 )
-def create_user(payload: UserCreate, db: Session = Depends(get_db)):
-    existing_user = (
-        db.query(User)
-        .filter(User.username == payload.username)
-        .first()
+def get_month_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pantry = get_current_pantry(
+        current_user,
+        db,
     )
 
-    if existing_user:
-        raise HTTPException(
-            status_code=409,
-            detail="Username already exists",
+    # --------------------------------------------------------
+    # Last 30 calendar days, including today
+    # --------------------------------------------------------
+
+    today = datetime.now(timezone.utc).date()
+
+    first_day = today - timedelta(days=29)
+
+    start = datetime.combine(
+        first_day,
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+    end = datetime.combine(
+        today + timedelta(days=1),
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+    # --------------------------------------------------------
+    # Retrieve kcal grouped by day
+    # --------------------------------------------------------
+
+    results = (
+        db.query(
+            func.date(Event.event_date).label("event_day"),
+            func.sum(Event.kcal).label("kcal"),
+        )
+        .filter(
+            Event.token_share == pantry.token_share,
+            Event.event_date >= start,
+            Event.event_date < end,
+        )
+        .group_by(
+            func.date(Event.event_date)
+        )
+        .order_by(
+            func.date(Event.event_date)
+        )
+        .all()
+    )
+
+    # Convert database results to a dictionary.
+    kcal_by_day = {
+        row.event_day: Decimal(row.kcal)
+        for row in results
+    }
+
+    # --------------------------------------------------------
+    # Generate ALL 30 days
+    # --------------------------------------------------------
+
+    days = []
+
+    current_day = first_day
+
+    while current_day <= today:
+
+        days.append(
+            DailyKcalStats(
+                date=current_day,
+                kcal=kcal_by_day.get(
+                    current_day,
+                    Decimal("0"),
+                ),
+            )
         )
 
-    #### initial token_share
-    token_share = generate_initial_token_share(
-        payload.name,
-        payload.username,
-        payload.password,
+        current_day += timedelta(days=1)
+
+    return MonthStatsResponse(
+        start_date=first_day,
+        end_date=today,
+        threshold=pantry.kcal_threshold,
+        days=days,
     )
 
-    user = User(
-        name=payload.name,
-        username=payload.username,
-        password=hash_password(payload.password),
-        token_share=token_share,
-    )
 
-    db.add(user)
-    db.commit()
-    db.refresh(user)
 
-    return user
-'''
-
-'''
-@app.get("/users/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.get(User, user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-    return user
-'''
-
-########## PANTRY Creation ########## !!!!!! deprecated
-'''
-@app.post(
-    "/pantries",
-    response_model=PantryResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_pantry(payload: PantryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    #user = db.get(User, user_id)
-
-    if current_user is None:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found",
-        )
-
-    pantry = Pantry(
-        creator=current_user.id,
-        token_share=current_user.token_share,
-        kcal_threshold=payload.kcal_threshold,
-    )
-
-    db.add(pantry)
-    db.commit()
-    db.refresh(pantry)
-
-    return pantry
-'''

@@ -31,6 +31,9 @@ test status of notification engine with FCM (send notification to yourself)
 - `POST /auth/login`  
 register / login user  
 
+- `POST /auth/credentials`  
+change password of user (must provide the old password besides being logged in)
+
 - `GET /pantry`  
 retrieve pantry
 
@@ -57,7 +60,15 @@ create new product
 
 - `POST /eat`  
 eat a list of products and their quantities   
-<!-- EX. {product_id, quantity},{product_id, quantity}... -->
+<!-- EX. {product_id, quantity},{product_id, quantity}... -->  
+
+- `GET stats/day`  
+retrieve the total kcal reached so far during the day (divided by category) and the threshold (if set)  
+
+- `GET stats/month`  
+retrieve the total kcal reached every day in the last 30 days and the threshold (if set)  
+
+
 
 
 - `POST /users`  
@@ -75,6 +86,7 @@ new pantry  (DELETED)
 POST update product by diff quantity
 POST delete product
 POST delete category
+POST modify kcal_threshold
 <!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
 <!---- (NOT TO DO) POST edit event eat ---->
 POST change_psw

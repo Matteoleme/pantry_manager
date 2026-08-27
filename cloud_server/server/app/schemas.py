@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 
 ######################## LOGIN AUTH with JWT ########################
 class LoginRequest(BaseModel):
@@ -107,3 +107,28 @@ class EventProduct(BaseModel):
 
 class EventCreate(BaseModel):
     products: list[EventProduct] = Field(min_length=1)
+
+########################### STATISTICS with EVENTS ###################
+class CategoryKcalPercentage(BaseModel):
+    category: str
+    kcal: Decimal
+    percentage: Decimal
+
+
+class DayStatsResponse(BaseModel):
+    date: date
+    total_kcal: Decimal
+    threshold: int
+    categories: list[CategoryKcalPercentage]
+
+
+class DailyKcalStats(BaseModel):
+    date: date
+    kcal: Decimal
+
+
+class MonthStatsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    threshold: int
+    days: list[DailyKcalStats]

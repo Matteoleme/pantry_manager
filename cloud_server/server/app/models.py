@@ -151,3 +151,4 @@ class Event(Base):
     kcal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12,3), nullable=False)
     unit: Mapped[str] = mapped_column(String(10), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
