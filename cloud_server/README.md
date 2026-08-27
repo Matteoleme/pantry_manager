@@ -49,6 +49,10 @@ create new category
 - `POST /products`  
 create new product  
 
+- `POST /eat`  
+eat a list of products and their quantities   
+
+
 
 - `POST /users`  
 new user  (DELETED)
@@ -63,7 +67,7 @@ new pantry  (DELETED)
 <!-- GET list categories -->
 <!--POST new categories -->
 POST update product by diff quantity
-POST eat(update products and events)(list of [product_id, quantity]) 
+<!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
 POST change_psw
 <!-- POST change pantry to local (exit shared pantry) -->
 GET get pending pantry share requests (owner of pantry)
@@ -77,7 +81,7 @@ modify jwt expiration to unlimited
 <!-- add standard categories by default on pantry creation (dairy, fruit, vegetables, meat, drinks, other) -->
 <!-- only call pantry creation at user registration -->
 
-send notification on reaching kcal_threshold (if != 0)
+<!-- send notification on reaching kcal_threshold (if != 0) -->
 <!-- send notification on request share pantry -->
  
-when doing something on main page, return updated pantry with list of products 
+<!-- when doing something on main page, return updated pantry with list of products -->

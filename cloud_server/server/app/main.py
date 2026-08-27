@@ -31,6 +31,7 @@ from .schemas import (
 )
 from .notifications import (
     send_pantry_share_notification,
+    send_kcal_t_reached_notification,
 )
 
 #### security and user authentication
@@ -178,6 +179,23 @@ def update_device_token(
     }
 
 ########## PANTRY Retrieve ##########
+### recurrent function ###
+def get_current_pantry(current_user: User, db: Session) -> Pantry:
+    pantry = (
+        db.query(Pantry)
+        .filter(
+            Pantry.token_share == current_user.token_share
+        )
+        .first()
+    )
+    
+    if pantry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Pantry not found",
+        )
+    return pantry
+### ---- ###
 @app.get(
     "/pantry",
     response_model=PantryResponse,
@@ -186,20 +204,7 @@ def get_my_pantry(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    pantry = (
-        db.query(Pantry)
-        .filter(
-            Pantry.token_share == current_user.token_share
-        )
-        .first()
-    )
-
-    if pantry is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No pantry associated with this user",
-        )
-
+    pantry = get_current_pantry(current_user, db)
     ### to retrieve all products: pantry.products
 
     return pantry
@@ -275,6 +280,8 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
     db.refresh(request)
 
     ######################## fire notification to creator ############
+    '''
+    TODO decomment
     if owner.fcm_token:
         try:
             send_pantry_share_notification(
@@ -284,8 +291,11 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
             )
         except Exception as exc:
             print(f"failed to send FCM notification: {exc}")
+    '''
 
-    return request
+    my_pantry = get_current_pantry(current_user, db)
+
+    return my_pantry
 
 ########## PANTRY JOIN REQUEST Approve ##########
 @app.post(
@@ -346,8 +356,9 @@ def approve_pantry_request(request_id: int, current_user: User = Depends(get_cur
 
     db.commit()
     db.refresh(request)
+    my_pantry = get_current_pantry(current_user, db)
 
-    return request
+    return my_pantry
 
 ########## PANTRY JOIN REQUEST Reject ##########
 @app.post(
@@ -387,8 +398,9 @@ def reject_pantry_request(request_id: int, current_user: User = Depends(get_curr
 
     db.commit()
     db.refresh(request)
+    my_pantry = get_current_pantry(current_user, db)
 
-    return request
+    return my_pantry
 
 ########## PANTRY Leave shared pantry ##########
 @app.post("/pantry/leave")
@@ -417,13 +429,17 @@ def leave_shared_pantry(
     db.commit()
     db.refresh(current_user)
 
+    '''
     return {
         "status": "ok",
         "message": "Returned to your own pantry",
         "local": current_user.local,
     }
+    '''
+    my_pantry = get_current_pantry(current_user, db)
+    return my_pantry
 
-########## PANTRY Categories retrieve ##########
+########## CATEGORIES retrieve ##########
 @app.get(
     "/categories",
     response_model=list[CategoryResponse],
@@ -443,7 +459,7 @@ def get_categories(
 
     return categories
 
-########## PANTRY Category create ##########
+########## CATEGORY create ##########
 @app.post(
     "/categories",
     response_model=CategoryResponse,
@@ -453,13 +469,7 @@ def create_category(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    pantry = (
-        db.query(Pantry)
-        .filter(
-            Pantry.token_share == current_user.token_share
-        )
-        .first()
-    )
+    pantry = get_current_pantry(current_user, db)
 
     if pantry is None:
         raise HTTPException(
@@ -476,9 +486,18 @@ def create_category(
     db.commit()
     db.refresh(category)
 
-    return category
+    categories = (
+        db.query(Category)
+        .filter(
+            Category.token_share == current_user.token_share
+        )
+        .order_by(Category.name)
+        .all()
+    )
+    
+    return categories
 
-########## PANTRY Product create ##########
+########## PRODUCT create ##########
 @app.post(
     "/products",
     response_model=ProductResponse,
@@ -515,14 +534,15 @@ def create_product(
 
     db.add(product)
     db.commit()
-    db.refresh(product)
+    #db.refresh(product)
+    pantry = get_current_pantry(current_user, db)
 
-    return product
+    return pantry
 
 
-########## Event create ##########
+########## EVENT create ##########
 @app.post(
-    "/events",
+    "/eat",
     response_model=EventResponse,
 )
 def create_event(
@@ -555,11 +575,40 @@ def create_event(
         unit=payload.unit,
     )
 
+    actual_kcal = 0
+
     db.add(event)
     db.commit()
     db.refresh(event)
 
-    return event
+    pantry = get_current_pantry(current_user, db)
+
+    #TODO decomment
+    '''
+    if actual_kcal >= pantry.kcal_threshold and pantry.kcal_threshold != 0:
+        
+        
+        pantry_users = (
+            db.query(User)
+            .filter(
+                User.token_share == current_user.token_share
+            )
+        )
+        fcm_tokens = []
+        for pantry_user in pantry_users:
+            if pantry_user.fcm_token:
+                fcm_tokens.append(pantry_user.fcm_token)
+        try:
+            send_kcal_t_reached_notification(
+                fcm_tokens=pantry_user.fcm_token,
+                actual_kcal=actual_kcal,
+                kcal_threshold=pantry.kcal_threshold,
+            )
+        except Exception as exc:
+            print(f"failed to send FCM notification: {exc}")        
+            
+    '''
+    return pantry
 
 ##########  ##########
 

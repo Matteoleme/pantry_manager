@@ -52,6 +52,12 @@ class Pantry(Base):
     products: Mapped[list["Product"]] = relationship(
         back_populates="pantry",
     )
+    '''
+    products: Mapped[list["Product"]] = relationship(
+        primaryjoin="Pantry.token_share == foreign(Product.token_share)",
+        viewonly=True,
+    )
+    '''
 
     creator_user: Mapped[User] = relationship(
         back_populates="pantries",

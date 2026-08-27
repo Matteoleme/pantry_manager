@@ -113,9 +113,11 @@ class EventResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    '''
     token_share: str
     product_id: int
     event_date: datetime
     kcal: int
     quantity: Decimal
     unit: str
+    '''
