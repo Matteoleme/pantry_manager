@@ -17,6 +17,7 @@ import com.mobileapp.xpensa.data.api.NominatimApi
 import com.mobileapp.xpensa.data.api.PantryApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
 import com.mobileapp.xpensa.data.api.PantryResponse
+import com.mobileapp.xpensa.data.api.ProductCreate
 import com.mobileapp.xpensa.data.api.ProductResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -189,11 +190,37 @@ class PantryViewModel(
     }
 
     fun addProduct(product: Product) {
-        _uiState.update { state ->
-            val newProducts = state.products + product
-            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
-            state.copy(products = newProducts)
+        viewModelScope.launch {
+            try {
+                val createRequest = mapToCreate(product)
+                val response = pantryApi.createProduct(createRequest)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val savedProduct = mapProductResponse(response.body()!!)
+                    
+                    _uiState.update { state ->
+                        val newProducts = state.products + savedProduct
+                        viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
+                        state.copy(products = newProducts)
+                    }
+                } else {
+                    android.util.Log.e("PantryViewModel", "Errore creazione prodotto: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Eccezione creazione prodotto", e)
+            }
         }
+    }
+
+    private fun mapToCreate(p: Product): ProductCreate {
+        return ProductCreate(
+            name = p.name,
+            ean = p.ean,
+            unit = p.unit.name, // O p.unit.symbol? Lo schema dice "string". Uso name (KG, L, UNIT)
+            quantity = p.quantity.toString(),
+            category = p.category,
+            kcal = p.kcal ?: 0
+        )
     }
 
     fun updateProduct(updatedProduct: Product) {

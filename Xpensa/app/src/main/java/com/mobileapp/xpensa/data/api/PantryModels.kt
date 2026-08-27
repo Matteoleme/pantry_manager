@@ -15,6 +15,16 @@ data class ProductResponse(
 )
 
 @Serializable
+data class ProductCreate(
+    val name: String,
+    @SerialName("EAN") val ean: String?,
+    val unit: String,
+    val quantity: String,
+    val category: String,
+    val kcal: Int
+)
+
+@Serializable
 data class PantryResponse(
     val id: Int,
     val creator: Int,

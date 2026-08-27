@@ -610,10 +610,9 @@ def create_product(
 
     db.add(product)
     db.commit()
-    #db.refresh(product)
-    pantry = get_current_pantry(current_user, db)
-
-    return pantry
+    db.refresh(product)
+    
+    return product
 
 
 ########## EVENT create ##########
