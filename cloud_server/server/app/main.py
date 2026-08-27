@@ -163,7 +163,7 @@ def login(
         token_type="bearer",
     )
 
-########## USER DEVICE Registration (notifications with firebase) ##########
+########## USER DEVICE Registration (notifications with firebase) and TEST ##########
 @app.put("/users/me/device")
 def update_device_token(
     payload: DeviceTokenUpdate,
@@ -176,6 +176,26 @@ def update_device_token(
 
     return {
         "status": "ok",
+    }
+
+@app.post("/test/fcm")
+def test_fcm(
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.fcm_token:
+        raise HTTPException(
+            status_code=400,
+            detail="No FCM token registered",
+        )
+
+    response = send_pantry_share_notification(
+        fcm_token=current_user.fcm_token,
+        request_id=123,
+        requester_name="Test User",
+    )
+
+    return {
+        "message_id": response,
     }
 
 ########## PANTRY Retrieve ##########

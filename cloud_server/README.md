@@ -21,6 +21,12 @@ The API will be available at:
 - `GET /health`  
 get health status  
 
+- `PUT /users/me/device`  
+update device token FCM  
+
+- `POST /test/fcm`  
+test status of notification engine with FCM (send notification to yourself)  
+
 - `POST /auth/register`
 - `POST /auth/login`  
 register / login user  
