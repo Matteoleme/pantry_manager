@@ -58,6 +58,10 @@ create new category
 - `POST /products`  
 create new product  
 
+- `POST /products/{product_id}/quantity`  
+update product quantity  
+<!-- EX. {"quantity": -5} -->
+
 - `POST /eat`  
 eat a list of products and their quantities   
 <!-- EX. {product_id, quantity},{product_id, quantity}... -->  
@@ -68,14 +72,6 @@ retrieve the total kcal reached so far during the day (divided by category) and 
 - `GET stats/month`  
 retrieve the total kcal reached every day in the last 30 days and the threshold (if set)  
 
-
-
-
-- `POST /users`  
-new user  (DELETED)
-
-- `POST /pantries`  
-new pantry  (DELETED)  
 
 
 - TODO

@@ -31,6 +31,7 @@ from .schemas import (
     CategoryResponse,
     ProductCreate,
     ProductResponse,
+    ProductQuantityUpdate,
     TokenResponse,
     LoginRequest,
     ChangePasswordRequest,
@@ -615,6 +616,64 @@ def create_product(
 
     return pantry
 
+
+########## PRODUCT update quantity ##########
+@app.post(
+    "/products/{product_id}/quantity",
+    response_model=PantryResponse,
+)
+def update_product_quantity(
+    product_id: int,
+    payload: ProductQuantityUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pantry = get_current_pantry(
+        current_user,
+        db,
+    )
+
+    # Find product in the currently selected pantry
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_id,
+            Product.token_share == pantry.token_share,
+        )
+        .first()
+    )
+
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found in current pantry",
+        )
+
+    # Calculate new quantity
+    new_quantity = (
+        product.quantity + payload.quantity
+    )
+
+    # Quantity cannot become negative
+    if new_quantity < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Insufficient quantity. "
+                f"Current quantity: {product.quantity}, "
+                f"requested change: {payload.quantity}"
+            ),
+        )
+
+    # Update
+    product.quantity = new_quantity
+
+    db.commit()
+
+    # Refresh pantry so the response contains the updated product list
+    db.refresh(pantry)
+
+    return pantry
 
 ########## EVENT create ##########
 def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:

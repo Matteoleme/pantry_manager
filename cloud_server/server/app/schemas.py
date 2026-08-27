@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from decimal import Decimal
 from datetime import datetime, date
 
@@ -62,6 +62,16 @@ class ProductResponse(BaseModel):
     category: str
     kcal: int
     #token_share: str
+
+class ProductQuantityUpdate(BaseModel):
+    quantity: Decimal
+
+    @field_validator("quantity")
+    @classmethod
+    def quantity_non_zero(cls, value: Decimal):
+        if value == 0:
+            raise ValueError("Quantity relative change cannot be zero")
+        return value
     
 #################################### PANTRY ########################
 class PantryCreate(BaseModel):
