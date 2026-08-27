@@ -16,6 +16,8 @@ import com.mobileapp.xpensa.data.api.FoodFactsApi
 import com.mobileapp.xpensa.data.api.NominatimApi
 import com.mobileapp.xpensa.data.api.PantryApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
+import com.mobileapp.xpensa.data.api.PantryResponse
+import com.mobileapp.xpensa.data.api.ProductResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -79,17 +81,32 @@ class PantryViewModel(
 
     fun refreshData() {
         viewModelScope.launch {
-            // Leggiamo tutto in un colpo solo per efficienza e sicurezza
             try {
-                val products = dataStoreManager.productsFlow.first()
+                val localProducts = dataStoreManager.productsFlow.first()
                 val storedDailyCalories = dataStoreManager.dailyCaloriesFlow.first()
                 val lastDate = dataStoreManager.lastCaloriesDateFlow.first()
                 val showOutOfStock = dataStoreManager.showOutOfStockFlow.first()
                 val stores = dataStoreManager.storesFlow.first()
 
                 val today = LocalDate.now().toString()
-                
                 val dailyCalories = if (lastDate != today) 0 else storedDailyCalories
+
+                // Recuperiamo la dispensa dal backend
+                val pantryResponse = try {
+                    pantryApi.getPantry()
+                } catch (e: Exception) {
+                    android.util.Log.e("PantryViewModel", "Errore chiamata pantry", e)
+                    null
+                }
+
+                val remoteProducts = if (pantryResponse?.isSuccessful == true) {
+                    val body = pantryResponse.body()
+                    android.util.Log.d("PantryViewModel", "Pantry ricevuta: $body")
+                    body?.products?.map { mapProductResponse(it) } ?: emptyList()
+                } else {
+                    android.util.Log.w("PantryViewModel", "Errore fetch pantry backend. Code: ${pantryResponse?.code()}")
+                    null
+                }
 
                 // Recuperiamo le categorie dal backend
                 val categoriesResponse = try {
@@ -101,19 +118,14 @@ class PantryViewModel(
 
                 val finalCategories = if (categoriesResponse?.isSuccessful == true) {
                     val body = categoriesResponse.body()
-                    android.util.Log.d("PantryViewModel", "Raw Body ricevuto: $body")
-                    
                     val remoteCategories = body?.map { it.name } ?: emptyList()
                     
                     if (remoteCategories.isNotEmpty()) {
-                        android.util.Log.d("PantryViewModel", "Categorie reali dal backend: $remoteCategories")
                         remoteCategories
                     } else {
-                        android.util.Log.w("PantryViewModel", "Backend ha restituito una lista VUOTA")
                         Category.entries.map { it.displayName }
                     }
                 } else {
-                    android.util.Log.w("PantryViewModel", "Fallback su categorie locali. Code: ${categoriesResponse?.code()}")
                     val localCategories = dataStoreManager.categoriesFlow.first()
                     if (localCategories.isEmpty()) {
                         Category.entries.map { it.displayName }
@@ -122,9 +134,11 @@ class PantryViewModel(
                     }
                 }
 
+                val finalProducts = remoteProducts ?: localProducts
+
                 _uiState.update { state ->
                     state.copy(
-                        products = products,
+                        products = finalProducts,
                         allCategories = finalCategories,
                         dailyCalories = dailyCalories,
                         showOnlyOutOfStock = showOutOfStock,
@@ -139,6 +153,11 @@ class PantryViewModel(
                 if (categoriesResponse?.isSuccessful == true) {
                     dataStoreManager.saveCategories(finalCategories)
                 }
+
+                // Opzionale: aggiorniamo la cache locale con i prodotti remoti
+                if (remoteProducts != null) {
+                    dataStoreManager.saveProducts(remoteProducts)
+                }
             } catch (e: Exception) {
                 android.util.Log.e("PantryViewModel", "Errore fatale loadData", e)
                 _uiState.update { state ->
@@ -146,6 +165,27 @@ class PantryViewModel(
                 }
             }
         }
+    }
+
+    private fun mapProductResponse(res: ProductResponse): Product {
+        val unit = when (res.unit.uppercase()) {
+            "KG" -> MeasurementUnit.KG
+            "L" -> MeasurementUnit.L
+            "UNIT", "UNITÀ", "UNITA" -> MeasurementUnit.UNIT
+            else -> {
+                MeasurementUnit.entries.find { it.symbol.equals(res.unit, ignoreCase = true) } 
+                    ?: MeasurementUnit.UNIT
+            }
+        }
+        return Product(
+            id = res.id.toString(),
+            name = res.name,
+            category = res.category,
+            quantity = res.quantity.toDoubleOrNull() ?: 0.0,
+            unit = unit,
+            kcal = res.kcal,
+            ean = res.ean
+        )
     }
 
     fun addProduct(product: Product) {
