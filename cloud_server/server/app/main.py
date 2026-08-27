@@ -111,6 +111,7 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         kcal_threshold = 0,
     )
     db.add(pantry)
+    db.flush()
 
     ###CREATE default categories
     for category_name in DEFAULT_CATEGORIES:

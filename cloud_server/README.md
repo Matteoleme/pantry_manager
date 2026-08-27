@@ -73,6 +73,8 @@ new pantry  (DELETED)
 <!-- GET list categories -->
 <!--POST new categories -->
 POST update product by diff quantity
+POST delete product
+POST delete category
 <!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
 POST change_psw
 <!-- POST change pantry to local (exit shared pantry) -->
