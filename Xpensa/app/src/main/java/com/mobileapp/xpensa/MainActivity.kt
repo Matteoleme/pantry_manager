@@ -24,12 +24,14 @@ class MainActivity : ComponentActivity() {
         // Inizializza il canale delle notifiche
         NotificationHelper(this).createNotificationChannel()
 
+        /*
         // Recupero iniziale del token FCM
         val dataStoreManager = DataStoreManager(applicationContext)
         val fcmTokenRepository = FcmTokenRepository(dataStoreManager)
         CoroutineScope(Dispatchers.IO).launch {
             fcmTokenRepository.fetchAndSaveToken()
         }
+        */
 
         // Gestione eventuale click su notifica all'avvio
         handleNotificationIntent(intent)

@@ -1,9 +1,9 @@
 package com.mobileapp.xpensa.data
 
 import android.util.Log
-import com.google.firebase.messaging.FirebaseMessaging
+// import com.google.firebase.messaging.FirebaseMessaging
 import com.mobileapp.xpensa.data.local.DataStoreManager
-import kotlinx.coroutines.tasks.await
+// import kotlinx.coroutines.tasks.await
 
 class FcmTokenRepository(private val dataStoreManager: DataStoreManager) {
 
@@ -12,6 +12,7 @@ class FcmTokenRepository(private val dataStoreManager: DataStoreManager) {
      * Prepara anche la chiamata al backend (TODO).
      */
     suspend fun fetchAndSaveToken() {
+        /*
         try {
             val token = FirebaseMessaging.getInstance().token.await()
             Log.d("FcmTokenRepository", "FCM Token recuperato: $token")
@@ -19,6 +20,7 @@ class FcmTokenRepository(private val dataStoreManager: DataStoreManager) {
         } catch (e: Exception) {
             Log.e("FcmTokenRepository", "Errore nel recupero del token FCM", e)
         }
+        */
     }
 
     /**
