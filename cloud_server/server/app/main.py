@@ -33,6 +33,7 @@ from .schemas import (
     ProductResponse,
     TokenResponse,
     LoginRequest,
+    ChangePasswordRequest,
 
 )
 from .notifications import (
@@ -169,6 +170,54 @@ def login(
         access_token=access_token,
         token_type="bearer",
     )
+
+########## USER change password ##########
+@app.post("/auth/credentials")
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # --------------------------------------------------------
+    # Verify current password
+    # --------------------------------------------------------
+
+    if not verify_password(
+        payload.current_password,
+        current_user.password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect",
+        )
+
+    # --------------------------------------------------------
+    # Prevent reusing the same password
+    # --------------------------------------------------------
+
+    if verify_password(
+        payload.new_password,
+        current_user.password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from current password",
+        )
+
+    # --------------------------------------------------------
+    # Hash and save new password
+    # --------------------------------------------------------
+
+    current_user.password = hash_password(
+        payload.new_password
+    )
+
+    db.commit()
+
+    return {
+        "status": "ok",
+        "message": "Password changed successfully",
+    }
 
 ########## USER DEVICE Registration (notifications with firebase) and TEST ##########
 @app.put("/users/me/device")
