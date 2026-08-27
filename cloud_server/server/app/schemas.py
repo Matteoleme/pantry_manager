@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 
 ######################## LOGIN AUTH with JWT ########################
 class LoginRequest(BaseModel):
@@ -11,6 +11,12 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+######################## CHANGE PASSWORD ########################
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
+
 
 ######################## DEVICE Registration for notifications (firebase) ########################
 class DeviceTokenUpdate(BaseModel):
@@ -101,21 +107,34 @@ class CategoryResponse(BaseModel):
     #token_share: str
 
 #################################### EVENTS ########################
+class EventProduct(BaseModel):
+    product_id: int
+    quantity: Decimal
+
 class EventCreate(BaseModel):
-    #token_share: str = Field(min_length=1, max_length=260)
-    product_id: int
-    event_date: datetime
-    kcal: int = Field(default=0)
-    quantity: Decimal
-    unit: str = Field(min_length=1, max_length=10)
+    products: list[EventProduct] = Field(min_length=1)
 
-class EventResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+########################### STATISTICS with EVENTS ###################
+class CategoryKcalPercentage(BaseModel):
+    category: str
+    kcal: Decimal
+    percentage: Decimal
 
-    id: int
-    token_share: str
-    product_id: int
-    event_date: datetime
-    kcal: int
-    quantity: Decimal
-    unit: str
+
+class DayStatsResponse(BaseModel):
+    date: date
+    total_kcal: Decimal
+    threshold: int
+    categories: list[CategoryKcalPercentage]
+
+
+class DailyKcalStats(BaseModel):
+    date: date
+    kcal: Decimal
+
+
+class MonthStatsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    threshold: int
+    days: list[DailyKcalStats]

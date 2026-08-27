@@ -1,9 +1,12 @@
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import messaging
+from decimal import Decimal
 
 from .config import FIREBASE_CREDENTIALS_FILE
 
+### TODO decomment this FCM init
+'''
 # Firebase initialization
 if not firebase_admin._apps:
     cred = credentials.Certificate(
@@ -11,7 +14,7 @@ if not firebase_admin._apps:
     )
 
     firebase_admin.initialize_app(cred)
-
+'''
 
 # Pantry sharing notification
 def send_pantry_share_notification(
@@ -34,6 +37,25 @@ def send_pantry_share_notification(
 
     response = messaging.send(message)
     return response
+
+#daily kcal over threshold t (t>0)
+# reached kcal threshold notification
+def send_kcal_t_reached_notification(
+    fcm_tokens: list[str],
+    actual_kcal: Decimal,
+    kcal_threshold: int,
+
+) -> str:
+    for user_token in fcm_tokens:
+        message= messaging.Message(
+            notification=messaging.Notification(
+                title="Congratulations!",
+                body=f"Today you have reached {actual_kcal} kcal!! \nThe daily threshold is set to {kcal_threshold}",
+            ),
+            token= user_token,
+        )
+        response = messaging.send(message)
+    return "Notification sent to users"
 
 ''' PAYLOAD
 {

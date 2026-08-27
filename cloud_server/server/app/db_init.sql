@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS events (
     kcal INTEGER NOT NULL DEFAULT 0,
     quantity NUMERIC(12,3) NOT NULL,
     unit VARCHAR(10) NOT NULL,
+    category VARCHAR(50) NOT NULL,
 
     CONSTRAINT fk_events_pantry
         FOREIGN KEY (token_share)

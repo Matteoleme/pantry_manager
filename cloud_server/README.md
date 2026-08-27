@@ -21,9 +21,18 @@ The API will be available at:
 - `GET /health`  
 get health status  
 
+- `PUT /users/me/device`  
+update device token FCM  
+
+- `POST /test/fcm`  
+test status of notification engine with FCM (send notification to yourself)  
+
 - `POST /auth/register`
 - `POST /auth/login`  
 register / login user  
+
+- `POST /auth/credentials`  
+change password of user (must provide the old password besides being logged in)
 
 - `GET /pantry`  
 retrieve pantry
@@ -49,6 +58,18 @@ create new category
 - `POST /products`  
 create new product  
 
+- `POST /eat`  
+eat a list of products and their quantities   
+<!-- EX. {product_id, quantity},{product_id, quantity}... -->  
+
+- `GET stats/day`  
+retrieve the total kcal reached so far during the day (divided by category) and the threshold (if set)  
+
+- `GET stats/month`  
+retrieve the total kcal reached every day in the last 30 days and the threshold (if set)  
+
+
+
 
 - `POST /users`  
 new user  (DELETED)
@@ -62,12 +83,16 @@ new pantry  (DELETED)
 <!-- POST new product -->
 <!-- GET list categories -->
 <!--POST new categories -->
-POST update product by diff quantity
-POST eat(update products and events)(list of [product_id, quantity]) 
-POST change_psw
+<!-- POST update product by diff quantity -->
+POST delete product
+POST delete category
+POST modify kcal_threshold
+<!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
+<!---- (NOT TO DO) POST edit event eat ---->
+<!-- POST change_psw -->
 <!-- POST change pantry to local (exit shared pantry) -->
 GET get pending pantry share requests (owner of pantry)
-GET daily statistics from events
+<!-- GET daily/monthly statistics from events -->
 
 - TODO 
 <!-- modify product/event quantity integer -> float -->
@@ -77,7 +102,7 @@ modify jwt expiration to unlimited
 <!-- add standard categories by default on pantry creation (dairy, fruit, vegetables, meat, drinks, other) -->
 <!-- only call pantry creation at user registration -->
 
-send notification on reaching kcal_threshold (if != 0)
+<!-- send notification on reaching kcal_threshold (if != 0) -->
 <!-- send notification on request share pantry -->
  
-when doing something on main page, return updated pantry with list of products 
+<!-- when doing something on main page, return updated pantry with list of products -->
