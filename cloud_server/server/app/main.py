@@ -24,6 +24,8 @@ from .schemas import (
     PantryResponse,
     PantryShareRequestCreate,
     PantryShareRequestResponse,
+    PantryShareRequestResponseInfo,
+    PantryShareRequestListResponse,
     UserCreate,
     UserResponse,
     DeviceTokenUpdate,
@@ -373,6 +375,74 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
     my_pantry = get_current_pantry(current_user, db)
 
     return my_pantry
+
+
+###### TODO check implementation with fields not in model (ex. requesting name and username)
+########## PANTRY retrieve PENDING share requests ##########
+@app.get(
+    "/pantry-share-requests",
+    response_model=PantryShareRequestListResponse,
+)
+def get_pending_share_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # The user must be the creator of the pantry
+    pantry = (
+        db.query(Pantry)
+        .filter(
+            Pantry.creator == current_user.id
+        )
+        .first()
+    )
+
+    if pantry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You are not the creator of a pantry",
+        )
+
+    # Retrieve pending requests
+    requests = (
+        db.query(
+            PantryShareRequest,
+            User,
+        )
+        .join(
+            User,
+            User.id == PantryShareRequest.requesting_user_id,
+        )
+        .filter(
+            PantryShareRequest.pantry_token_share
+            == pantry.token_share,
+
+            PantryShareRequest.status
+            == "pending",
+        )
+        .order_by(
+            PantryShareRequest.created_at.asc()
+        )
+        .all()
+    )
+
+    result = []
+
+    for request, requester in requests:
+        result.append(
+            PantryShareRequestResponseInfo(
+                id=request.id,
+                requester_id=requester.id,
+                requester_username=requester.username,
+                requester_name=requester.name,
+                status=request.status,
+                created_at=request.created_at,
+            )
+        )
+
+    return PantryShareRequestListResponse(
+        requests=result
+    )
+
 
 ########## PANTRY JOIN REQUEST Approve ##########
 @app.post(

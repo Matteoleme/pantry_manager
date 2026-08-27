@@ -104,6 +104,19 @@ class PantryShareRequestResponse(BaseModel):
     status: str
     created_at: datetime
 
+class PantryShareRequestResponseInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    requester_id: int
+    requester_username: str
+    requester_name: str
+    status: str
+    created_at: datetime
+
+class PantryShareRequestListResponse(BaseModel):
+    requests: list[PantryShareRequestResponseInfo]
+
 #################################### CATEGORIES ########################
 class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100,)

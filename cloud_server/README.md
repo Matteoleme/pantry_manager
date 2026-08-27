@@ -41,6 +41,9 @@ retrieve pantry
 create request to join a pantry
 <!--EX. { "username": "alice11" } -->  
 
+- `GET /pantry-share-requests`  
+list all pending join requests sent to your pantry  
+
 - `POST /pantry/leave`  
 get back to your own local pantry (exit shared pantry)  
 
@@ -87,7 +90,7 @@ POST modify kcal_threshold
 <!---- (NOT TO DO) POST edit event eat ---->
 <!-- POST change_psw -->
 <!-- POST change pantry to local (exit shared pantry) -->
-GET get pending pantry share requests (owner of pantry)
+<!-- GET get pending pantry share requests (only owner of pantry) -->
 <!-- GET daily/monthly statistics from events -->
 
 - TODO 
