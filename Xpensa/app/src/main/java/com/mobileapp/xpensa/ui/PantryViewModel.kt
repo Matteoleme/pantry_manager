@@ -14,6 +14,7 @@ import com.mobileapp.xpensa.data.StoreSearchResult
 import com.mobileapp.xpensa.data.MeasurementUnit
 import com.mobileapp.xpensa.data.api.FoodFactsApi
 import com.mobileapp.xpensa.data.api.NominatimApi
+import com.mobileapp.xpensa.data.api.PantryApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +30,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.time.LocalDate
 
-class PantryViewModel(application: Application) : AndroidViewModel(application) {
+class PantryViewModel(
+    application: Application,
+    private val pantryApi: PantryApi
+) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(PantryUiState())
     val uiState: StateFlow<PantryUiState> = _uiState.asStateFlow()
 
@@ -70,15 +74,14 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     init {
-        loadDataFromStorage()
+        refreshData()
     }
 
-    private fun loadDataFromStorage() {
+    fun refreshData() {
         viewModelScope.launch {
             // Leggiamo tutto in un colpo solo per efficienza e sicurezza
             try {
                 val products = dataStoreManager.productsFlow.first()
-                val categories = dataStoreManager.categoriesFlow.first()
                 val storedDailyCalories = dataStoreManager.dailyCaloriesFlow.first()
                 val lastDate = dataStoreManager.lastCaloriesDateFlow.first()
                 val showOutOfStock = dataStoreManager.showOutOfStockFlow.first()
@@ -88,10 +91,35 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
                 
                 val dailyCalories = if (lastDate != today) 0 else storedDailyCalories
 
-                val finalCategories = if (categories.isEmpty()) {
-                    Category.entries.map { it.displayName }
+                // Recuperiamo le categorie dal backend
+                val categoriesResponse = try {
+                    pantryApi.getCategories()
+                } catch (e: Exception) {
+                    android.util.Log.e("PantryViewModel", "Errore chiamata categorie", e)
+                    null
+                }
+
+                val finalCategories = if (categoriesResponse?.isSuccessful == true) {
+                    val body = categoriesResponse.body()
+                    android.util.Log.d("PantryViewModel", "Raw Body ricevuto: $body")
+                    
+                    val remoteCategories = body?.map { it.name } ?: emptyList()
+                    
+                    if (remoteCategories.isNotEmpty()) {
+                        android.util.Log.d("PantryViewModel", "Categorie reali dal backend: $remoteCategories")
+                        remoteCategories
+                    } else {
+                        android.util.Log.w("PantryViewModel", "Backend ha restituito una lista VUOTA")
+                        Category.entries.map { it.displayName }
+                    }
                 } else {
-                    categories
+                    android.util.Log.w("PantryViewModel", "Fallback su categorie locali. Code: ${categoriesResponse?.code()}")
+                    val localCategories = dataStoreManager.categoriesFlow.first()
+                    if (localCategories.isEmpty()) {
+                        Category.entries.map { it.displayName }
+                    } else {
+                        localCategories
+                    }
                 }
 
                 _uiState.update { state ->
@@ -108,11 +136,11 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
                     dataStoreManager.saveDailyCalories(0, today)
                 }
                 
-                if (categories.isEmpty()) {
+                if (categoriesResponse?.isSuccessful == true) {
                     dataStoreManager.saveCategories(finalCategories)
                 }
             } catch (e: Exception) {
-                // In caso di errore estremo, carichiamo almeno le categorie di default
+                android.util.Log.e("PantryViewModel", "Errore fatale loadData", e)
                 _uiState.update { state ->
                     state.copy(allCategories = Category.entries.map { it.displayName })
                 }

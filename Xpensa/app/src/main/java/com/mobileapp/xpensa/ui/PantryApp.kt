@@ -2,15 +2,15 @@ package com.mobileapp.xpensa.ui
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.mobileapp.xpensa.navigation.PantryDestination
 import com.mobileapp.xpensa.scanner.BarcodeScannerScreen
 import com.mobileapp.xpensa.ui.components.PantryScaffold
@@ -24,17 +24,72 @@ import com.mobileapp.xpensa.ui.theme.XpensaTheme
 import androidx.compose.ui.platform.LocalContext
 import android.app.Application
 import android.os.Build
-import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+
+import com.mobileapp.xpensa.data.AuthRepository
+import com.mobileapp.xpensa.data.api.AuthApi
+import com.mobileapp.xpensa.data.api.AuthInterceptor
+import com.mobileapp.xpensa.data.api.PantryApi
+import com.mobileapp.xpensa.data.local.DataStoreManager
+import com.mobileapp.xpensa.ui.auth.AuthViewModel
+import com.mobileapp.xpensa.ui.auth.LoginScreen
+import com.mobileapp.xpensa.ui.auth.RegisterScreen
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PantryApp() {
     val context = LocalContext.current
+    val dataStoreManager = remember { DataStoreManager(context.applicationContext) }
+    val json = remember { Json { ignoreUnknownKeys = true } }
+
+    val sharedClient = remember {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .addInterceptor(AuthInterceptor(dataStoreManager))
+            .build()
+    }
+
+    val authApi = remember {
+        Retrofit.Builder()
+            .baseUrl(AuthApi.BASE_URL)
+            .client(sharedClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(AuthApi::class.java)
+    }
+
+    val pantryApi = remember {
+        Retrofit.Builder()
+            .baseUrl(PantryApi.BASE_URL)
+            .client(sharedClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(PantryApi::class.java)
+    }
+
+    val authRepository = remember { AuthRepository(authApi, dataStoreManager) }
+
+    val authViewModel: AuthViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return AuthViewModel(authRepository) as T
+            }
+        }
+    )
 
     // Gestione permesso notifiche per Android 13+ tramite Accompanist
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -52,13 +107,17 @@ fun PantryApp() {
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return PantryViewModel(context.applicationContext as Application) as T
+                return PantryViewModel(context.applicationContext as Application, pantryApi) as T
             }
         }
     )
-    val backStack = rememberNavBackStack(PantryDestination.Home)
-    // val pantryViewModel: PantryViewModel = viewModel() <--- removed this line
 
+    val initialDestination = remember {
+        val token = runBlocking { dataStoreManager.authTokenFlow.first() }
+        if (token != null) PantryDestination.Home else PantryDestination.Login
+    }
+
+    val backStack = rememberNavBackStack(initialDestination)
 
     val uiState by pantryViewModel.uiState.collectAsState()
 
@@ -85,6 +144,34 @@ fun PantryApp() {
             modifier = Modifier.fillMaxSize()
         ) { key ->
             when (key) {
+                PantryDestination.Login -> NavEntry(key) {
+                    LoginScreen(
+                        viewModel = authViewModel,
+                        onNavigateToRegister = {
+                            backStack.add(PantryDestination.Register)
+                        },
+                        onLoginSuccess = {
+                            // Refresh data in pantryViewModel now that we have a token
+                            pantryViewModel.refreshData()
+                            
+                            // Clear backstack and go home
+                            while (backStack.size > 0) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
+                            backStack.add(PantryDestination.Home)
+                        }
+                    )
+                }
+                PantryDestination.Register -> NavEntry(key) {
+                    RegisterScreen(
+                        viewModel = authViewModel,
+                        onNavigateBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
+                        }
+                    )
+                }
                 PantryDestination.Home -> NavEntry(key) { 
                     HomeScreen(
                         viewModel = pantryViewModel,

@@ -27,6 +27,8 @@ class DataStoreManager(private val context: Context) {
         val LAST_SYNC_TIMESTAMP_KEY = longPreferencesKey("last_sync_timestamp")
         val STORES_KEY = stringPreferencesKey("stores_json")
         val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token")
+        val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
+        val TOKEN_TYPE_KEY = stringPreferencesKey("token_type")
 
         val MOCK_STORES = listOf(
             Store(
@@ -84,6 +86,14 @@ class DataStoreManager(private val context: Context) {
         preferences[FCM_TOKEN_KEY]
     }
 
+    val authTokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[AUTH_TOKEN_KEY]
+    }
+
+    val tokenTypeFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[TOKEN_TYPE_KEY]
+    }
+
     val storesFlow: Flow<List<Store>> = context.dataStore.data.map { preferences ->
         val jsonString = preferences[STORES_KEY]
         if (jsonString == null) {
@@ -131,6 +141,20 @@ class DataStoreManager(private val context: Context) {
     suspend fun saveFcmToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[FCM_TOKEN_KEY] = token
+        }
+    }
+
+    suspend fun saveAuthToken(token: String, type: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTH_TOKEN_KEY] = token
+            preferences[TOKEN_TYPE_KEY] = type
+        }
+    }
+
+    suspend fun clearAuthToken() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(AUTH_TOKEN_KEY)
+            preferences.remove(TOKEN_TYPE_KEY)
         }
     }
 
