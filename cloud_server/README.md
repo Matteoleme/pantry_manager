@@ -83,13 +83,13 @@ new pantry  (DELETED)
 <!-- POST new product -->
 <!-- GET list categories -->
 <!--POST new categories -->
-POST update product by diff quantity
+<!-- POST update product by diff quantity -->
 POST delete product
 POST delete category
 POST modify kcal_threshold
 <!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
 <!---- (NOT TO DO) POST edit event eat ---->
-POST change_psw
+<!-- POST change_psw -->
 <!-- POST change pantry to local (exit shared pantry) -->
 GET get pending pantry share requests (owner of pantry)
 <!-- GET daily/monthly statistics from events -->
