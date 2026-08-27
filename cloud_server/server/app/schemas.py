@@ -101,23 +101,9 @@ class CategoryResponse(BaseModel):
     #token_share: str
 
 #################################### EVENTS ########################
+class EventProduct(BaseModel):
+    product_id: int
+    quantity: Decimal
+
 class EventCreate(BaseModel):
-    #token_share: str = Field(min_length=1, max_length=260)
-    product_id: int
-    event_date: datetime
-    kcal: int = Field(default=0)
-    quantity: Decimal
-    unit: str = Field(min_length=1, max_length=10)
-
-class EventResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    '''
-    token_share: str
-    product_id: int
-    event_date: datetime
-    kcal: int
-    quantity: Decimal
-    unit: str
-    '''
+    products: list[EventProduct] = Field(min_length=1)

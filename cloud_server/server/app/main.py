@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from sqlalchemy import func
+from datetime import datetime, timezone, time, date, timedelta
+from decimal import Decimal
 
 from .database import Base, engine, get_db
 from .models import (
@@ -13,7 +15,7 @@ from .models import (
 )
 from .schemas import (
     EventCreate,
-    EventResponse,
+    EventProduct,
     PantryCreate,
     PantryResponse,
     PantryShareRequestCreate,
@@ -562,46 +564,114 @@ def create_product(
 
 
 ########## EVENT create ##########
+def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:
+    unit = unit.lower()
+    if unit == "item":
+        return kcal*quantity/Decimal("100")
+    if unit == "kg" or unit == "l":
+        return kcal*quantity*Decimal("10")
+    raise ValueError(f"Unsupported product unit: {unit}")
+
+
 @app.post(
     "/eat",
-    response_model=EventResponse,
+    response_model=PantryResponse,
 )
 def create_event(
     payload: EventCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    product = (
-        db.query(Product)
-        .filter(
-            Product.id == payload.product_id,
-            Product.token_share == current_user.token_share,
+
+    pantry = get_current_pantry(current_user, db)
+    event_date = datetime.now(timezone.utc)
+
+    for selected_product in payload.products:
+        requested_quantity = selected_product.quantity
+        product = (
+            db.query(Product)
+            .filter(
+                Product.id == selected_product.product_id,
+                Product.token_share == current_user.token_share,
+            )
+            .first()
         )
-        .first()
-    )
+        if product is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Product not found",
+            )
+        if product.quantity < requested_quantity:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Insufficient quantity for product {product.name}",
+            )
 
-    if product is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found",
+        #calculate kcal for product
+        try:
+            event_kcal = calculate_kcal(product.unit, product.kcal, requested_quantity)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=str(exc),
+            )
+
+        #decrement product quantity in db
+        product.quantity -= requested_quantity
+
+        #create event eat
+        event = Event(
+            token_share=current_user.token_share,
+            product_id=payload.product_id,
+            event_date=event_date,
+            kcal=event_kcal,
+            quantity=requested_quantity,
+            unit=product.unit,
         )
+        db.add(event)
 
-    event = Event(
-        token_share=current_user.token_share,
-        product_id=payload.product_id,
-        #category=payload.category,
-        event_date=payload.event_date,
-        kcal=payload.kcal,
-        quantity=payload.quantity,
-        unit=payload.unit,
-    )
-
-    actual_kcal = 0
-
-    db.add(event)
+    
+    #commit all events
     db.commit()
-    db.refresh(event)
+    #db.refresh(pantry)
 
+
+    #calculate kcal for today
+    '''
+    #if below does not work: date()....
+    start = datetime.combine(
+        today,
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+    end = datetime.combine(
+        today,
+        time.max,
+        tzinfo=timezone.utc,
+    )
+
+    result = (
+        db.query(func.coalesce(func.sum(Event.kcal), 0))
+        .filter(
+            Event.token_share == token_share,
+            Event.event_date >= start,
+            Event.event_date <= end,
+        )
+        .scalar()
+    )
+    return result
+    '''
+    today = datetime.now(timezone.utc).date()
+    actual_kcal = (
+        db.query(func.coalesce(func.sum(Event.kcal),0))
+        .filter(
+            Event.token_share == current_user.token_share,
+            Event.event_date.date() == today,
+        )
+        .scalar()
+    )
+     
     pantry = get_current_pantry(current_user, db)
 
     #TODO decomment
@@ -631,7 +701,14 @@ def create_event(
     '''
     return pantry
 
-##########  ##########
+########## STATISTICS on kcal ##########
+
+### DAILY ###
+
+
+### MONTHLY ###
+
+
 
 ########## USER Creation ########## !!!!!! deprecated
 '''

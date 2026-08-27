@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import messaging
+from decimal import Decimal
 
 from .config import FIREBASE_CREDENTIALS_FILE
 
@@ -41,7 +42,7 @@ def send_pantry_share_notification(
 # reached kcal threshold notification
 def send_kcal_t_reached_notification(
     fcm_tokens: list[str],
-    actual_kcal: int,
+    actual_kcal: Decimal,
     kcal_threshold: int,
 
 ) -> str:

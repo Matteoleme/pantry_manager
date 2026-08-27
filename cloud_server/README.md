@@ -57,7 +57,7 @@ create new product
 
 - `POST /eat`  
 eat a list of products and their quantities   
-
+<!-- EX. {product_id, quantity},{product_id, quantity}... -->
 
 
 - `POST /users`  
@@ -76,10 +76,11 @@ POST update product by diff quantity
 POST delete product
 POST delete category
 <!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
+<!---- (NOT TO DO) POST edit event eat ---->
 POST change_psw
 <!-- POST change pantry to local (exit shared pantry) -->
 GET get pending pantry share requests (owner of pantry)
-GET daily statistics from events
+<!-- GET daily/monthly statistics from events -->
 
 - TODO 
 <!-- modify product/event quantity integer -> float -->
