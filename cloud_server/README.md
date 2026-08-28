@@ -41,6 +41,9 @@ retrieve pantry
 create request to join a pantry
 <!--EX. { "username": "alice11" } -->  
 
+- `GET /pantry-share-requests`  
+list all pending join requests sent to your pantry  
+
 - `POST /pantry/leave`  
 get back to your own local pantry (exit shared pantry)  
 
@@ -58,6 +61,10 @@ create new category
 - `POST /products`  
 create new product  
 
+- `POST /products/{product_id}/quantity`  
+update product quantity  
+<!-- EX. {"quantity": -5} -->
+
 - `POST /eat`  
 eat a list of products and their quantities   
 <!-- EX. {product_id, quantity},{product_id, quantity}... -->  
@@ -68,14 +75,9 @@ retrieve the total kcal reached so far during the day (divided by category) and 
 - `GET stats/month`  
 retrieve the total kcal reached every day in the last 30 days and the threshold (if set)  
 
+- `POST /update-threshold`  
+update the kcal-threshold for your pantry 
 
-
-
-- `POST /users`  
-new user  (DELETED)
-
-- `POST /pantries`  
-new pantry  (DELETED)  
 
 
 - TODO
@@ -85,13 +87,15 @@ new pantry  (DELETED)
 <!--POST new categories -->
 <!-- POST update product by diff quantity -->
 POST delete product
-POST delete category
-POST modify kcal_threshold
+POST modify product
+?? POST delete category
+?? GET events and threshold
+<!-- POST modify kcal_threshold -->
 <!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
 <!---- (NOT TO DO) POST edit event eat ---->
 <!-- POST change_psw -->
 <!-- POST change pantry to local (exit shared pantry) -->
-GET get pending pantry share requests (owner of pantry)
+<!-- GET get pending pantry share requests (only owner of pantry) -->
 <!-- GET daily/monthly statistics from events -->
 
 - TODO 

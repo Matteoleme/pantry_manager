@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from decimal import Decimal
 from datetime import datetime, date
 
@@ -62,6 +62,16 @@ class ProductResponse(BaseModel):
     category: str
     kcal: int
     #token_share: str
+
+class ProductQuantityUpdate(BaseModel):
+    quantity: Decimal
+
+    @field_validator("quantity")
+    @classmethod
+    def quantity_non_zero(cls, value: Decimal):
+        if value == 0:
+            raise ValueError("Quantity relative change cannot be zero")
+        return value
     
 #################################### PANTRY ########################
 class PantryCreate(BaseModel):
@@ -80,6 +90,9 @@ class PantryResponse(BaseModel):
     #list of products in the response
     products: list[ProductResponse] = Field(default_factory=list)
 
+class PantryThresholdModify(BaseModel):
+    kcal_threshold: int = Field(default=0, ge=0)
+
 #################################### PANTRY SHARING ########################
 class PantryShareRequestCreate(BaseModel):
     #token_share: str = Field(min_length=1, max_length= 260)
@@ -93,6 +106,19 @@ class PantryShareRequestResponse(BaseModel):
     requesting_user_id: int
     status: str
     created_at: datetime
+
+class PantryShareRequestResponseInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    requester_id: int
+    requester_username: str
+    requester_name: str
+    status: str
+    created_at: datetime
+
+class PantryShareRequestListResponse(BaseModel):
+    requests: list[PantryShareRequestResponseInfo]
 
 #################################### CATEGORIES ########################
 class CategoryCreate(BaseModel):

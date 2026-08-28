@@ -22,8 +22,11 @@ from .schemas import (
     DayStatsResponse,
     PantryCreate,
     PantryResponse,
+    PantryThresholdModify,
     PantryShareRequestCreate,
     PantryShareRequestResponse,
+    PantryShareRequestResponseInfo,
+    PantryShareRequestListResponse,
     UserCreate,
     UserResponse,
     DeviceTokenUpdate,
@@ -31,6 +34,7 @@ from .schemas import (
     CategoryResponse,
     ProductCreate,
     ProductResponse,
+    ProductQuantityUpdate,
     TokenResponse,
     LoginRequest,
     ChangePasswordRequest,
@@ -285,7 +289,29 @@ def get_my_pantry(
 
     return pantry
 
+########## PANTRY threshold modify ##########
+@app.post(
+    "/update-threshold",
+    response_model=PantryResponse,
+)
+def modify_pantry_kcal_threshold(payload: PantryThresholdModify, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):    
+    
+    my_pantry = get_current_pantry(current_user, db)
+
+    if payload.kcal_threshold < 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Negative threshold",
+        )
+    my_pantry.kcal_threshold = payload.kcal_threshold
+    db.commit()
+    db.refresh(my_pantry)
+
+    return my_pantry
+
+
 ########## PANTRY JOIN REQUEST Creation ##########
+### TODO check response_model (change to PantryResponse)
 @app.post(
     "/pantry-share-requests",
     response_model=PantryShareRequestResponse,
@@ -373,7 +399,76 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
 
     return my_pantry
 
+
+###### TODO check implementation with fields not in model (ex. requesting name and username)
+########## PANTRY retrieve PENDING share requests ##########
+@app.get(
+    "/pantry-share-requests",
+    response_model=PantryShareRequestListResponse,
+)
+def get_pending_share_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # The user must be the creator of the pantry
+    pantry = (
+        db.query(Pantry)
+        .filter(
+            Pantry.creator == current_user.id
+        )
+        .first()
+    )
+
+    if pantry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You are not the creator of a pantry",
+        )
+
+    # Retrieve pending requests
+    requests = (
+        db.query(
+            PantryShareRequest,
+            User,
+        )
+        .join(
+            User,
+            User.id == PantryShareRequest.requesting_user_id,
+        )
+        .filter(
+            PantryShareRequest.pantry_token_share
+            == pantry.token_share,
+
+            PantryShareRequest.status
+            == "pending",
+        )
+        .order_by(
+            PantryShareRequest.created_at.asc()
+        )
+        .all()
+    )
+
+    result = []
+
+    for request, requester in requests:
+        result.append(
+            PantryShareRequestResponseInfo(
+                id=request.id,
+                requester_id=requester.id,
+                requester_username=requester.username,
+                requester_name=requester.name,
+                status=request.status,
+                created_at=request.created_at,
+            )
+        )
+
+    return PantryShareRequestListResponse(
+        requests=result
+    )
+
+
 ########## PANTRY JOIN REQUEST Approve ##########
+### TODO check response_model (change to PantryResponse)
 @app.post(
     "/pantry-share-requests/{request_id}/approve",
     response_model=PantryShareRequestResponse,
@@ -437,6 +532,7 @@ def approve_pantry_request(request_id: int, current_user: User = Depends(get_cur
     return my_pantry
 
 ########## PANTRY JOIN REQUEST Reject ##########
+### TODO check response_model (change to PantryResponse)
 @app.post(
     "/pantry-share-requests/{request_id}/reject",
     response_model=PantryShareRequestResponse,
@@ -538,7 +634,7 @@ def get_categories(
 ########## CATEGORY create ##########
 @app.post(
     "/categories",
-    response_model=CategoryResponse,
+    response_model=list[CategoryResponse],
 )
 def create_category(
     payload: CategoryCreate,
@@ -568,37 +664,72 @@ def create_category(
 ########## PRODUCT create ##########
 @app.post(
     "/products",
-    response_model=ProductResponse,
+    response_model=PantryResponse,
 )
 def create_product(
     payload: ProductCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    category = (
-        db.query(Category)
+
+    if payload.quantity <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(f"Incorrect quantity, select a positive quantity"),
+        )
+            
+    product_with_EAN_present = (
+        db.query(Product)
         .filter(
-            Category.name == payload.category,
-            Category.token_share == current_user.token_share,
+            Product.EAN == payload.EAN, 
+            Product.token_share ==current_user.token_share,
         )
         .first()
     )
 
-    if category is None:
-        raise HTTPException(
+    if product_with_EAN_present :
+        if product_with_EAN_present.kcal != payload.kcal:
+            raise HTTPException(
             status_code=404,
-            detail="Category not found",
+            detail="A product with same EAN is present in your pantry\nkcal of products mismatch",
+        )
+        new_quantity = (
+            product_with_EAN_present.quantity + payload.quantity
+        )
+        
+        # Update
+        product_with_EAN_present.quantity = new_quantity
+        db.commit()
+
+    else:
+
+        category = (
+            db.query(Category)
+            .filter(
+                Category.name == payload.category,
+                Category.token_share == current_user.token_share,
+            )
+            .first()
         )
 
-    product = Product(
-        name=payload.name,
-        EAN=payload.EAN,
-        unit=payload.unit,
-        quantity=payload.quantity,
-        category=payload.category,
-        kcal=payload.kcal,
-        token_share=current_user.token_share,
-    )
+        if category is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Category not found",
+            )
+
+        product = Product(
+            name=payload.name,
+            EAN=payload.EAN,
+            unit=payload.unit,
+            quantity=payload.quantity,
+            category=payload.category,
+            kcal=payload.kcal,
+            token_share=current_user.token_share,
+        )
+
+        db.add(product)
+        db.commit()
 
     db.add(product)
     db.commit()
@@ -607,10 +738,68 @@ def create_product(
     return product
 
 
+########## PRODUCT update quantity ##########
+@app.post(
+    "/products/{product_id}/quantity",
+    response_model=PantryResponse,
+)
+def update_product_quantity(
+    product_id: int,
+    payload: ProductQuantityUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pantry = get_current_pantry(
+        current_user,
+        db,
+    )
+
+    # Find product in the currently selected pantry
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_id,
+            Product.token_share == pantry.token_share,
+        )
+        .first()
+    )
+
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found in current pantry",
+        )
+
+    # Calculate new quantity
+    new_quantity = (
+        product.quantity + payload.quantity
+    )
+
+    # Quantity cannot become negative
+    if new_quantity < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Insufficient quantity. "
+                f"Current quantity: {product.quantity}, "
+                f"requested change: {payload.quantity}"
+            ),
+        )
+
+    # Update
+    product.quantity = new_quantity
+
+    db.commit()
+
+    # Refresh pantry so the response contains the updated product list
+    db.refresh(pantry)
+
+    return pantry
+
 ########## EVENT create ##########
 def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:
     unit = unit.lower()
-    if unit == "item":
+    if unit == "unit":
         return kcal*quantity/Decimal("100")
     if unit == "kg" or unit == "l":
         return kcal*quantity*Decimal("10")
