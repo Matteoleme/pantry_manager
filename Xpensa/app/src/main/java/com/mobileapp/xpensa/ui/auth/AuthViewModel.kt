@@ -3,8 +3,10 @@ package com.mobileapp.xpensa.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobileapp.xpensa.data.AuthRepository
+import com.mobileapp.xpensa.data.api.ChangePasswordRequest
 import com.mobileapp.xpensa.data.api.LoginRequest
 import com.mobileapp.xpensa.data.api.RegisterRequest
+import com.mobileapp.xpensa.data.api.UserResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -14,7 +16,9 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val isRegistered: Boolean = false,
-    val isAuthenticated: Boolean = false
+    val isAuthenticated: Boolean = false,
+    val user: UserResponse? = null,
+    val passwordChanged: Boolean = false
 )
 
 class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
@@ -74,5 +78,52 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
 
     fun resetRegistration() {
         _uiState.update { it.copy(isRegistered = false) }
+    }
+
+    fun getUserInfo() {
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            repository.getUserInfo()
+                .onSuccess { user ->
+                    _uiState.update { it.copy(isLoading = false, user = user) }
+                }
+                .onFailure { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message) }
+                }
+        }
+    }
+
+    fun changePassword(old: String, new: String, confirm: String) {
+        if (new != confirm) {
+            _uiState.update { it.copy(error = "Le password non coincidono") }
+            return
+        }
+        if (new.length < 8) {
+            _uiState.update { it.copy(error = "La password deve essere di almeno 8 caratteri") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            repository.changePassword(ChangePasswordRequest(old, new))
+                .onSuccess {
+                    _uiState.update { it.copy(isLoading = false, passwordChanged = true) }
+                }
+                .onFailure { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message) }
+                }
+        }
+    }
+
+    fun logout(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            repository.logout()
+            _uiState.update { AuthUiState() }
+            onSuccess()
+        }
+    }
+
+    fun resetPasswordChanged() {
+        _uiState.update { it.copy(passwordChanged = false) }
     }
 }

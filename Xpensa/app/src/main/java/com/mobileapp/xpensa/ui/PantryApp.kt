@@ -18,6 +18,7 @@ import com.mobileapp.xpensa.ui.consumption.MealConsumptionScreen
 import com.mobileapp.xpensa.ui.home.HomeScreen
 import com.mobileapp.xpensa.ui.products.EditProductScreen
 import com.mobileapp.xpensa.ui.products.NewProductScreen
+import com.mobileapp.xpensa.ui.profile.ProfileScreen
 import com.mobileapp.xpensa.ui.stores.StoresScreen
 import com.mobileapp.xpensa.ui.theme.XpensaTheme
 
@@ -187,6 +188,18 @@ fun PantryApp() {
                             if (backStack.size > 1) {
                                 backStack.removeAt(backStack.size - 1)
                             }
+                        }
+                    )
+                }
+                PantryDestination.Profile -> NavEntry(key) {
+                    ProfileScreen(
+                        viewModel = authViewModel,
+                        onLogout = {
+                            // Clear backstack and go to login
+                            while (backStack.size > 0) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
+                            backStack.add(PantryDestination.Login)
                         }
                     )
                 }

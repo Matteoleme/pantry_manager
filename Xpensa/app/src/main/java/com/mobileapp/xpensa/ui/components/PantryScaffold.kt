@@ -148,10 +148,10 @@ fun PantryScaffold(
                             onClick = { onNavigate(PantryDestination.Trends) }
                         )
                         NavigationBarItem(
-                            icon = { Icon(Icons.Default.Favorite, contentDescription = "Preferiti") },
-                            label = { Text("Preferiti") },
-                            selected = currentDestination == PantryDestination.Favorites,
-                            onClick = { onNavigate(PantryDestination.Favorites) }
+                            icon = { Icon(Icons.Default.Person, contentDescription = "Profilo") },
+                            label = { Text("Profilo") },
+                            selected = currentDestination == PantryDestination.Profile,
+                            onClick = { onNavigate(PantryDestination.Profile) }
                         )
                     }
                 }

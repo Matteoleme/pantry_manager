@@ -158,6 +158,16 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
+    suspend fun clearTokens() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(AUTH_TOKEN_KEY)
+            preferences.remove(TOKEN_TYPE_KEY)
+            // Possiamo anche pulire prodotti e categorie se vogliamo una logout pulita
+            preferences.remove(PRODUCTS_KEY)
+            preferences.remove(CATEGORIES_KEY)
+        }
+    }
+
     suspend fun saveStores(stores: List<Store>) {
         context.dataStore.edit { preferences ->
             preferences[STORES_KEY] = json.encodeToString(stores)

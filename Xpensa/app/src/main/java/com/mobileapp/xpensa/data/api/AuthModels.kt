@@ -30,6 +30,19 @@ data class LoginResponse(
 )
 
 @Serializable
+data class UserResponse(
+    val id: Int,
+    val name: String,
+    val username: String
+)
+
+@Serializable
+data class ChangePasswordRequest(
+    @SerialName("old_password") val oldPassword: String,
+    @SerialName("new_password") val newPassword: String
+)
+
+@Serializable
 data class CategoryResponse(
     val name: String,
     val id: Int? = null,
