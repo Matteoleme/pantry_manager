@@ -634,7 +634,7 @@ def get_categories(
 ########## CATEGORY create ##########
 @app.post(
     "/categories",
-    response_model=list[CategoryResponse],
+    response_model=CategoryResponse,
 )
 def create_category(
     payload: CategoryCreate,
@@ -664,7 +664,7 @@ def create_category(
 ########## PRODUCT create ##########
 @app.post(
     "/products",
-    response_model=PantryResponse,
+    response_model=ProductResponse,
 )
 def create_product(
     payload: ProductCreate,
@@ -688,6 +688,7 @@ def create_product(
     )
 
     if product_with_EAN_present :
+        product = product_with_EAN_present
         if product_with_EAN_present.kcal != payload.kcal:
             raise HTTPException(
             status_code=404,
@@ -741,7 +742,7 @@ def create_product(
 ########## PRODUCT update quantity ##########
 @app.post(
     "/products/{product_id}/quantity",
-    response_model=PantryResponse,
+    response_model=ProductResponse,
 )
 def update_product_quantity(
     product_id: int,
@@ -790,11 +791,9 @@ def update_product_quantity(
     product.quantity = new_quantity
 
     db.commit()
+    db.refresh(product)
 
-    # Refresh pantry so the response contains the updated product list
-    db.refresh(pantry)
-
-    return pantry
+    return product
 
 ########## EVENT create ##########
 def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:
