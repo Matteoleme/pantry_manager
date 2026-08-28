@@ -9,6 +9,9 @@ interface PantryApi {
     @GET("pantry")
     suspend fun getPantry(): Response<PantryResponse>
 
+    @GET("all_products")
+    suspend fun getAllProducts(): Response<List<ProductResponse>>
+
     @POST("products")
     suspend fun createProduct(@Body product: ProductCreate): Response<ProductResponse>
 

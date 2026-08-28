@@ -146,7 +146,10 @@ class PantryViewModel(
                         allCategories = finalCategories,
                         dailyCalories = dailyCalories,
                         showOnlyOutOfStock = showOutOfStock,
-                        stores = stores
+                        stores = stores,
+                        pantryId = pantryResponse?.body()?.id,
+                        pantryCreatorId = pantryResponse?.body()?.creator,
+                        kcalThreshold = pantryResponse?.body()?.kcalThreshold
                     )
                 }
 
@@ -583,7 +586,10 @@ data class PantryUiState(
     val userLocation: UserLocation? = null,
     val storeSearchResults: List<StoreSearchResult> = emptyList(),
     val isSearchingStores: Boolean = false,
-    val storeSearchError: String? = null
+    val storeSearchError: String? = null,
+    val pantryId: Int? = null,
+    val pantryCreatorId: Int? = null,
+    val kcalThreshold: Int? = null
 ) {
     fun updateLocationSortedSearchResults(results: List<StoreSearchResult>): PantryUiState {
         val sorted = if (userLocation != null) {

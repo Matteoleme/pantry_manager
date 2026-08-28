@@ -18,6 +18,7 @@ import com.mobileapp.xpensa.ui.consumption.MealConsumptionScreen
 import com.mobileapp.xpensa.ui.home.HomeScreen
 import com.mobileapp.xpensa.ui.products.EditProductScreen
 import com.mobileapp.xpensa.ui.products.NewProductScreen
+import com.mobileapp.xpensa.ui.profile.PantryInfoScreen
 import com.mobileapp.xpensa.ui.profile.ProfileScreen
 import com.mobileapp.xpensa.ui.stores.StoresScreen
 import com.mobileapp.xpensa.ui.theme.XpensaTheme
@@ -194,12 +195,25 @@ fun PantryApp() {
                 PantryDestination.Profile -> NavEntry(key) {
                     ProfileScreen(
                         viewModel = authViewModel,
+                        onNavigateToPantryInfo = {
+                            backStack.add(PantryDestination.PantryInfo)
+                        },
                         onLogout = {
                             // Clear backstack and go to login
                             while (backStack.size > 0) {
                                 backStack.removeAt(backStack.size - 1)
                             }
                             backStack.add(PantryDestination.Login)
+                        }
+                    )
+                }
+                PantryDestination.PantryInfo -> NavEntry(key) {
+                    PantryInfoScreen(
+                        viewModel = pantryViewModel,
+                        onNavigateBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
                         }
                     )
                 }
