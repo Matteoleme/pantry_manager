@@ -30,6 +30,17 @@ data class CategoryCreate(
 )
 
 @Serializable
+data class EventProduct(
+    @SerialName("product_id") val productId: Int,
+    val quantity: String
+)
+
+@Serializable
+data class EventCreate(
+    val products: List<EventProduct>
+)
+
+@Serializable
 data class PantryResponse(
     val id: Int,
     val creator: Int,

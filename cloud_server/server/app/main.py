@@ -854,7 +854,7 @@ def create_event(
         #create event eat
         event = Event(
             token_share=current_user.token_share,
-            product_id=payload.product_id,
+            product_id=selected_product.product_id,
             event_date=event_date,
             kcal=event_kcal,
             quantity=requested_quantity,

@@ -17,6 +17,8 @@ import com.mobileapp.xpensa.data.api.NominatimApi
 import com.mobileapp.xpensa.data.api.PantryApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
 import com.mobileapp.xpensa.data.api.CategoryCreate
+import com.mobileapp.xpensa.data.api.EventCreate
+import com.mobileapp.xpensa.data.api.EventProduct
 import com.mobileapp.xpensa.data.api.PantryResponse
 import com.mobileapp.xpensa.data.api.ProductCreate
 import com.mobileapp.xpensa.data.api.ProductResponse
@@ -249,38 +251,73 @@ class PantryViewModel(
         var mealKcal = 0
         val today = LocalDate.now().toString()
         
-        _uiState.update { state ->
-            val updatedProducts = state.products.map { product ->
-                val consumeQty = consumptions[product.id] ?: 0.0
-                if (consumeQty > 0) {
-                    val effectiveConsumeQty = minOf(product.quantity, consumeQty)
-                    
-                    val kcalContribution = product.kcal?.let { kcal ->
-                        if (product.unit == MeasurementUnit.UNIT) {
-                            (kcal * effectiveConsumeQty).toInt()
-                        } else {
-                            (kcal * effectiveConsumeQty * 10).toInt()
-                        }
-                    } ?: 0
-                    mealKcal += kcalContribution
-                    product.copy(quantity = maxOf(0.0, product.quantity - effectiveConsumeQty))
-                } else {
-                    product
-                }
+        // Calcolo locale immediato per la UI (dialog)
+        uiState.value.products.forEach { product ->
+            val consumeQty = consumptions[product.id] ?: 0.0
+            if (consumeQty > 0) {
+                val effectiveConsumeQty = minOf(product.quantity, consumeQty)
+                val kcalContribution = product.kcal?.let { kcal ->
+                    if (product.unit == MeasurementUnit.UNIT) {
+                        (kcal * effectiveConsumeQty).toInt()
+                    } else {
+                        (kcal * effectiveConsumeQty * 10).toInt()
+                    }
+                } ?: 0
+                mealKcal += kcalContribution
             }
-            
-            val newDailyCalories = state.dailyCalories + mealKcal
-            
-            viewModelScope.launch {
-                dataStoreManager.saveProducts(updatedProducts)
-                dataStoreManager.saveDailyCalories(newDailyCalories, today)
-            }
-
-            state.copy(
-                products = updatedProducts,
-                dailyCalories = newDailyCalories
-            )
         }
+
+        viewModelScope.launch {
+            android.util.Log.d("PantryViewModel", "Inizio chiamata /eat con: $consumptions")
+            try {
+                val currentProducts = uiState.value.products
+                val eventProducts = consumptions.mapNotNull { (id, qty) ->
+                    val product = currentProducts.find { it.id == id }
+                    val numericId = id.toIntOrNull()
+                    
+                    if (numericId == null) {
+                        android.util.Log.e("PantryViewModel", "ERRORE: ID prodotto NON numerico: '$id' (Nome: ${product?.name})")
+                        null
+                    } else {
+                        EventProduct(productId = numericId, quantity = qty.toString())
+                    }
+                }
+                
+                if (eventProducts.isEmpty() && consumptions.isNotEmpty()) {
+                    android.util.Log.e("PantryViewModel", "Interruzione: Nessun prodotto valido da inviare al server")
+                    return@launch
+                }
+                
+                android.util.Log.d("PantryViewModel", "Payload preparato per /eat: $eventProducts")
+                val response = pantryApi.eat(EventCreate(eventProducts))
+                
+                if (response.isSuccessful && response.body() != null) {
+                    android.util.Log.d("PantryViewModel", "Chiamata /eat riuscita!")
+                    val pantry = response.body()!!
+                    val remoteProducts = pantry.products.map { mapProductResponse(it) }
+                    
+                    _uiState.update { state ->
+                        val newDailyCalories = state.dailyCalories + mealKcal
+                        
+                        // Persistenza
+                        viewModelScope.launch {
+                            dataStoreManager.saveProducts(remoteProducts)
+                            dataStoreManager.saveDailyCalories(newDailyCalories, today)
+                        }
+
+                        state.copy(
+                            products = remoteProducts,
+                            dailyCalories = newDailyCalories
+                        )
+                    }
+                } else {
+                    android.util.Log.e("PantryViewModel", "Errore registrazione pasto: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Eccezione registrazione pasto", e)
+            }
+        }
+        
         return mealKcal
     }
 

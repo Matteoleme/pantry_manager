@@ -15,6 +15,9 @@ interface PantryApi {
     @POST("categories")
     suspend fun createCategory(@Body category: CategoryCreate): Response<CategoryResponse>
 
+    @POST("eat")
+    suspend fun eat(@Body event: EventCreate): Response<PantryResponse>
+
     @GET("categories")
     suspend fun getCategories(): Response<List<CategoryResponse>>
 
