@@ -90,6 +90,9 @@ class PantryResponse(BaseModel):
     #list of products in the response
     products: list[ProductResponse] = Field(default_factory=list)
 
+class PantryThresholdModify(BaseModel):
+    kcal_threshold: int = Field(default=0, ge=0)
+
 #################################### PANTRY SHARING ########################
 class PantryShareRequestCreate(BaseModel):
     #token_share: str = Field(min_length=1, max_length= 260)

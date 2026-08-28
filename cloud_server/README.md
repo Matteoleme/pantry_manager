@@ -75,6 +75,9 @@ retrieve the total kcal reached so far during the day (divided by category) and 
 - `GET stats/month`  
 retrieve the total kcal reached every day in the last 30 days and the threshold (if set)  
 
+- `POST /update-threshold`  
+update the kcal-threshold for your pantry 
+
 
 
 - TODO
@@ -84,8 +87,10 @@ retrieve the total kcal reached every day in the last 30 days and the threshold 
 <!--POST new categories -->
 <!-- POST update product by diff quantity -->
 POST delete product
-POST delete category
-POST modify kcal_threshold
+POST modify product
+?? POST delete category
+?? GET events and threshold
+<!-- POST modify kcal_threshold -->
 <!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
 <!---- (NOT TO DO) POST edit event eat ---->
 <!-- POST change_psw -->
