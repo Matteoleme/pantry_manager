@@ -200,7 +200,18 @@ class PantryViewModel(
                     val savedProduct = mapProductResponse(response.body()!!)
                     
                     _uiState.update { state ->
-                        val newProducts = state.products + savedProduct
+                        // Controlliamo se il prodotto restituito dal server esiste già nella nostra lista locale
+                        // (Succede se il backend ha fatto il "merge" delle quantità su un prodotto esistente)
+                        val alreadyExists = state.products.any { it.id == savedProduct.id }
+                        
+                        val newProducts = if (alreadyExists) {
+                            // Se esiste già, aggiorniamo solo quel prodotto con i nuovi dati (quantità aggiornata)
+                            state.products.map { if (it.id == savedProduct.id) savedProduct else it }
+                        } else {
+                            // Se non esiste, lo aggiungiamo come nuovo elemento alla lista
+                            state.products + savedProduct
+                        }
+                        
                         viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
                         state.copy(products = newProducts)
                     }
@@ -422,7 +433,7 @@ class PantryViewModel(
                     val scanned = ScannedProduct(
                         name = p.productName ?: "Prodotto sconosciuto",
                         unit = MeasurementUnit.UNIT,
-                        category = Category.ALTRO.displayName,
+                        category = Category.OTHER.displayName,
                         kcal = p.nutriments?.energyKcal100g?.toInt()
                     )
                     _uiState.update { it.copy(isFetchingProduct = false, lastScannedProduct = scanned) }

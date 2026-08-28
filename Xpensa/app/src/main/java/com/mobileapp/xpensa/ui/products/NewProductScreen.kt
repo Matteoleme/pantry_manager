@@ -41,7 +41,7 @@ fun NewProductScreen(
     var kcal by remember { mutableStateOf("") }
     var ean by remember { mutableStateOf("") }
     var selectedUnit by remember { mutableStateOf(MeasurementUnit.UNIT) }
-    var selectedCategoryName by remember { mutableStateOf(Category.ALTRO.displayName) }
+    var selectedCategoryName by remember { mutableStateOf(Category.OTHER.displayName) }
 
     var showNewCategoryDialog by remember { mutableStateOf(false) }
     var newCategoryInput by remember { mutableStateOf("") }

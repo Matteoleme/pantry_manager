@@ -10,7 +10,7 @@ enum class Category(val displayName: String) {
     FRUTTA("Frutta"),
     LATTICINI("Latticini"),
     BEVANDE("Bevande"),
-    ALTRO("Altro")
+    OTHER("Other")
 }
 
 @Serializable
