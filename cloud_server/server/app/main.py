@@ -562,16 +562,8 @@ def create_category(
     db.commit()
     db.refresh(category)
 
-    categories = (
-        db.query(Category)
-        .filter(
-            Category.token_share == current_user.token_share
-        )
-        .order_by(Category.name)
-        .all()
-    )
     
-    return categories
+    return category
 
 ########## PRODUCT create ##########
 @app.post(

@@ -16,6 +16,7 @@ import com.mobileapp.xpensa.data.api.FoodFactsApi
 import com.mobileapp.xpensa.data.api.NominatimApi
 import com.mobileapp.xpensa.data.api.PantryApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
+import com.mobileapp.xpensa.data.api.CategoryCreate
 import com.mobileapp.xpensa.data.api.PantryResponse
 import com.mobileapp.xpensa.data.api.ProductCreate
 import com.mobileapp.xpensa.data.api.ProductResponse
@@ -273,13 +274,25 @@ class PantryViewModel(
     }
 
     fun addCategory(categoryName: String) {
-        _uiState.update { state ->
-            if (categoryName.isNotBlank() && !state.allCategories.contains(categoryName)) {
-                val newCategories = state.allCategories + categoryName
-                viewModelScope.launch { dataStoreManager.saveCategories(newCategories) }
-                state.copy(allCategories = newCategories)
-            } else {
-                state
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.createCategory(CategoryCreate(categoryName))
+                if (response.isSuccessful && response.body() != null) {
+                    val serverCategoryName = response.body()!!.name
+                    _uiState.update { state ->
+                        if (!state.allCategories.contains(serverCategoryName)) {
+                            val newCategories = state.allCategories + serverCategoryName
+                            viewModelScope.launch { dataStoreManager.saveCategories(newCategories) }
+                            state.copy(allCategories = newCategories)
+                        } else {
+                            state
+                        }
+                    }
+                } else {
+                    android.util.Log.e("PantryViewModel", "Errore creazione categoria: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Eccezione creazione categoria", e)
             }
         }
     }

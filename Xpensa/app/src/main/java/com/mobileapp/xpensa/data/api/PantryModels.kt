@@ -25,6 +25,11 @@ data class ProductCreate(
 )
 
 @Serializable
+data class CategoryCreate(
+    val name: String
+)
+
+@Serializable
 data class PantryResponse(
     val id: Int,
     val creator: Int,
