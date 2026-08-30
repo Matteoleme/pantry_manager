@@ -10,12 +10,16 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 ######################## CHANGE PASSWORD ########################
 class ChangePasswordRequest(BaseModel):
-    current_password: str = Field(min_length=1)
-    new_password: str = Field(min_length=8)
+    oldPassword: str = Field(min_length=1)
+    newPassword: str = Field(min_length=8)
 
 
 ######################## DEVICE Registration for notifications (firebase) ########################
@@ -32,12 +36,21 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=255)
     #token_share: str = Field(min_length=1, max_length=260)
 
+    @field_validator("name", "username")
+    @classmethod
+    def cannot_contain_colon(cls, value: str) -> str:
+        if ":" in value:
+            raise ValueError("Name and username cannot contain ':'")
+
+        return value
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     name: str
     username: str
+    local: bool
     #token_share: str
 
 #################################### PRODUCTS ########################
@@ -83,12 +96,12 @@ class PantryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    creator: int
+    creator: str
     #token_share: str
     kcal_threshold: int
 
     #list of products in the response
-    products: list[ProductResponse] = Field(default_factory=list)
+    #products: list[ProductResponse] = Field(default_factory=list)
 
 class PantryThresholdModify(BaseModel):
     kcal_threshold: int = Field(default=0, ge=0)

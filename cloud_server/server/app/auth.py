@@ -16,9 +16,20 @@ def get_current_user(
     token = credentials.credentials
 
     try:
-        user_id = decode_access_token(token)
+        token_data = decode_access_token(token)
 
-    except ValueError:
+    except ValueError as exc:
+        if str(exc) == "ACCESS_TOKEN_EXPIRED":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "code":"ACCESS_TOKEN_EXPIRED",
+                    "message":"Access token expired",
+                },
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token",
@@ -26,8 +37,9 @@ def get_current_user(
                 "WWW-Authenticate": "Bearer",
             },
         )
+    
 
-    user = db.get(User, user_id)
+    user = db.get(User, token_data["user_id"])
 
     if user is None:
         raise HTTPException(
@@ -38,6 +50,13 @@ def get_current_user(
             },
         )
 
+    if user.session_version != token_data["session_version"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked",
+            
+        )
+    
     return user
 
 '''

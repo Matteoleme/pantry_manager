@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     token_share VARCHAR(260) NOT NULL,
     own_token_share VARCHAR(260) NOT NULL,
     fcm_token VARCHAR(512),
-    local BOOLEAN NOT NULL DEFAULT TRUE
+    local BOOLEAN NOT NULL DEFAULT TRUE,
+    session_version INTEGER NOT NULL DEFAULT 0
 );
 
 -- PANTRY
@@ -53,6 +54,8 @@ CREATE TABLE IF NOT EXISTS pantry_share_requests(
 CREATE TABLE IF NOT EXISTS categories (
     name VARCHAR(100) NOT NULL,
     token_share VARCHAR(260) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+
 
     PRIMARY KEY (name, token_share),
 
@@ -71,6 +74,7 @@ CREATE TABLE IF NOT EXISTS products (
     category VARCHAR(50) NOT NULL,
     kcal INTEGER NOT NULL DEFAULT 0,
     token_share VARCHAR(260) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
 
     CONSTRAINT chk_unit
         CHECK (unit IN ('Kg', 'unit', 'L')),
