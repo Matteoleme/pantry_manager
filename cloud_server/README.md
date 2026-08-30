@@ -131,7 +131,9 @@ update the kcal-threshold for your pantry
 <!-- modify get/pantry to retrieve only pantry informations (id, creator:username, kcal_threshold) -->
 <!-- modify product_with_EAN in add_product check null-ean implementation -->
 ?? add creator_id to event and tailor statistics for each user
-?? fix post/eat
+<!-- fix post/eat -->
+fix delete category (gives conflicts when not)
+fix retrieve share requests
 <!-- fix username/name (':' not allowed) -->
 <!-- modify jwt expiration to auto refresh allowing logout with stateless jwt -->
 <!-- add standard categories by default on pantry creation (dairy, fruit, vegetables, meat, drinks, other) -->

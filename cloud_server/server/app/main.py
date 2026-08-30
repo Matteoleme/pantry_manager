@@ -64,7 +64,7 @@ from .config import (
 )
 
 #create DB
-#Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Pantry Manager API",
@@ -237,7 +237,7 @@ def refresh(
 ########## USER logout ##########
 @app.post(
     "/auth/logout",
-    response_model=TokenResponse,
+    #response_model=TokenResponse,
 )
 def logout(
     current_user: User = Depends(get_current_user),
@@ -332,7 +332,7 @@ def test_fcm(
     "/me",
     response_model=UserResponse,
 )
-def get_pending_share_requests(
+def get_user_info(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -352,7 +352,7 @@ def get_current_pantry(current_user: User, db: Session) -> Pantry:
     pantry = (
         db.query(Pantry)
         .filter(
-            Pantry.token_share == current_user.token_share
+            Pantry.token_share == current_user.token_share,
         )
         .first()
     )
@@ -373,9 +373,24 @@ def get_my_pantry(
     db: Session = Depends(get_db),
 ):
     pantry = get_current_pantry(current_user, db)
-    ### to retrieve all products: pantry.products
+    ### to retrieve all products: pantry.products+
+    if current_user.local:
+        creator_username = current_user.username
+    else:
+        creator_user = (
+            db.query(User.username)
+            .filter(User.id == pantry.creator)
+            .first()
+        )
+        
+        creator_username = creator_user.username
 
-    return pantry
+    my_pantry = PantryResponse(
+        id = pantry.id,
+        creator = creator_username,
+        kcal_threshold = pantry.kcal_threshold,
+    )
+    return my_pantry
 
 ########## PANTRY threshold modify ##########
 @app.post(
@@ -888,10 +903,10 @@ def create_product(
         )
         
         if product_with_EAN_present :
-            if product_with_EAN_present.kcal != payload.kcal:
+            if product_with_EAN_present.kcal != payload.kcal or product_with_EAN_present.name != payload.name:
                 raise HTTPException(
-                status_code=404,
-                detail="A product with same EAN is present in your pantry\nkcal of products mismatch",
+                status_code=409,
+                detail="A product with same EAN is present in your pantry\nPRODUCTS MISMATCH",
             )
             new_quantity = (
                 product_with_EAN_present.quantity + payload.quantity
@@ -1043,14 +1058,25 @@ def get_product_by_id(
             Product.token_share == current_user.token_share,
             Product.active == True,
         )
+        .first()
     )
     if product is None:
         raise HTTPException(
             status_code=404,
             detail="Product not found",
         )
-    
+
     return product
+    '''
+    return ProductResponse(
+        id=product.id,
+        name=product.name,
+        EAN=product.EAN,
+        unit=product.unit,
+        quantity=product.quantity,
+        category=product.category,
+        kcal=product.kcal,
+    )'''
 
 ########## PRODUCT retrieve all products ##########
 @app.get(
@@ -1061,8 +1087,15 @@ def get_all_products(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    my_pantry = get_my_pantry(current_user, db)
-    products = my_pantry.products
+    
+    products = (
+        db.query(Product)
+        .filter(
+            Product.token_share == current_user.token_share,
+            Product.active == True,
+        )
+        .all()
+    )
     
     return products
 
@@ -1070,7 +1103,7 @@ def get_all_products(
 def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:
     unit = unit.lower()
     if unit == "unit":
-        return kcal*quantity/Decimal("100")
+        return kcal*quantity
     if unit == "kg" or unit == "l":
         return kcal*quantity*Decimal("10")
     raise ValueError(f"Unsupported product unit: {unit}")
@@ -1125,7 +1158,7 @@ def create_event(
         #create event eat
         event = Event(
             token_share=current_user.token_share,
-            product_id=payload.product_id,
+            product_id=product.id,
             event_date=event_date,
             kcal=event_kcal,
             quantity=requested_quantity,
@@ -1140,34 +1173,33 @@ def create_event(
     #db.refresh(pantry)
 
 
+   
+    today = datetime.now(timezone.utc)
     #calculate kcal for today
-    '''
-    #if below does not work: date()....
     start = datetime.combine(
         today,
         time.min,
         tzinfo=timezone.utc,
     )
-
+    
     end = datetime.combine(
         today,
         time.max,
         tzinfo=timezone.utc,
     )
-
-    result = (
+    
+    actual_kcal = (
         db.query(func.coalesce(func.sum(Event.kcal), 0))
         .filter(
-            Event.token_share == token_share,
+            Event.token_share == current_user.token_share,
             Event.event_date >= start,
             Event.event_date <= end,
         )
         .scalar()
     )
-    return result
-    '''
-    today = datetime.now(timezone.utc).date()
-    actual_kcal = (
+    #return result
+    
+    '''actual_kcal = (
         db.query(func.coalesce(func.sum(Event.kcal),0))
         .filter(
             Event.token_share == current_user.token_share,
@@ -1175,7 +1207,7 @@ def create_event(
         )
         .scalar()
     )
-     
+    '''
     #TODO decomment
     '''
     if actual_kcal >= pantry.kcal_threshold and pantry.kcal_threshold != 0:
