@@ -64,7 +64,7 @@ from .config import (
 )
 
 #create DB
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Pantry Manager API",

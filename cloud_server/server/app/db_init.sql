@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS events (
 
     CONSTRAINT fk_events_product
         FOREIGN KEY (product_id)
-        REFERENCES products(id),
+        REFERENCES products(id)
         
 );
 
