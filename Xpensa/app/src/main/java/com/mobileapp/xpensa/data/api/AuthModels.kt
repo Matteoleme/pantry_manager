@@ -38,8 +38,8 @@ data class UserResponse(
 
 @Serializable
 data class ChangePasswordRequest(
-    @SerialName("old_password") val oldPassword: String,
-    @SerialName("new_password") val newPassword: String
+    val oldPassword: String,
+    val newPassword: String
 )
 
 @Serializable

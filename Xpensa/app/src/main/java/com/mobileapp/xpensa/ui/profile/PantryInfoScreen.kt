@@ -23,6 +23,10 @@ fun PantryInfoScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.refreshData()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

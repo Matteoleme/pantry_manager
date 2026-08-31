@@ -12,10 +12,10 @@ interface PantryApi {
     @GET("all_products")
     suspend fun getAllProducts(): Response<List<ProductResponse>>
 
-    @POST("products")
+    @POST("add_product")
     suspend fun createProduct(@Body product: ProductCreate): Response<ProductResponse>
 
-    @POST("categories")
+    @POST("add_category")
     suspend fun createCategory(@Body category: CategoryCreate): Response<CategoryResponse>
 
     @POST("eat")

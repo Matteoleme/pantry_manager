@@ -55,7 +55,7 @@ fun ProfileScreen(
             imageVector = Icons.Default.Person,
             contentDescription = null,
             modifier = Modifier.size(100.dp),
-            color = MaterialTheme.colorScheme.primary
+            tint = MaterialTheme.colorScheme.primary
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -180,7 +180,7 @@ fun ProfileScreen(
                 contentColor = MaterialTheme.colorScheme.onErrorContainer
             )
         ) {
-            Icon(Icons.Default.Logout, contentDescription = null)
+            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("Logout")
         }

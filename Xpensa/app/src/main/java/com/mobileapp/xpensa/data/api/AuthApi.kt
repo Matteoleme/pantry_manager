@@ -12,13 +12,13 @@ interface AuthApi {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 
-    @POST("logout")
+    @POST("auth/logout")
     suspend fun logout(): Response<Unit>
 
     @GET("me")
     suspend fun getUserInfo(): Response<UserResponse>
 
-    @POST("credentials")
+    @POST("/auth/change_password")
     suspend fun changePassword(@Body request: ChangePasswordRequest): Response<Unit>
 
     companion object {

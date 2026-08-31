@@ -95,7 +95,7 @@ class PantryViewModel(
                 val today = LocalDate.now().toString()
                 val dailyCalories = if (lastDate != today) 0 else storedDailyCalories
 
-                // Recuperiamo la dispensa dal backend
+                // Recuperiamo la dispensa dal backend per info generali
                 val pantryResponse = try {
                     pantryApi.getPantry()
                 } catch (e: Exception) {
@@ -103,12 +103,20 @@ class PantryViewModel(
                     null
                 }
 
-                val remoteProducts = if (pantryResponse?.isSuccessful == true) {
-                    val body = pantryResponse.body()
-                    android.util.Log.d("PantryViewModel", "Pantry ricevuta: $body")
-                    body?.products?.map { mapProductResponse(it) } ?: emptyList()
+                // Recuperiamo i prodotti dal backend (nuovo endpoint dedicato)
+                val productsResponse = try {
+                    pantryApi.getAllProducts()
+                } catch (e: Exception) {
+                    android.util.Log.e("PantryViewModel", "Errore chiamata all_products", e)
+                    null
+                }
+
+                val remoteProducts = if (productsResponse?.isSuccessful == true) {
+                    val body = productsResponse.body()
+                    android.util.Log.d("PantryViewModel", "Prodotti ricevuti: ${body?.size}")
+                    body?.map { mapProductResponse(it) } ?: emptyList()
                 } else {
-                    android.util.Log.w("PantryViewModel", "Errore fetch pantry backend. Code: ${pantryResponse?.code()}")
+                    android.util.Log.w("PantryViewModel", "Errore fetch prodotti backend. Code: ${productsResponse?.code()}")
                     null
                 }
 
@@ -294,24 +302,20 @@ class PantryViewModel(
                 android.util.Log.d("PantryViewModel", "Payload preparato per /eat: $eventProducts")
                 val response = pantryApi.eat(EventCreate(eventProducts))
                 
-                if (response.isSuccessful && response.body() != null) {
+                if (response.isSuccessful) {
                     android.util.Log.d("PantryViewModel", "Chiamata /eat riuscita!")
-                    val pantry = response.body()!!
-                    val remoteProducts = pantry.products.map { mapProductResponse(it) }
+                    
+                    // Poiché PantryResponse non contiene più i prodotti, rinfreschiamo tutto
+                    refreshData()
                     
                     _uiState.update { state ->
                         val newDailyCalories = state.dailyCalories + mealKcal
                         
-                        // Persistenza
                         viewModelScope.launch {
-                            dataStoreManager.saveProducts(remoteProducts)
                             dataStoreManager.saveDailyCalories(newDailyCalories, today)
                         }
 
-                        state.copy(
-                            products = remoteProducts,
-                            dailyCalories = newDailyCalories
-                        )
+                        state.copy(dailyCalories = newDailyCalories)
                     }
                 } else {
                     android.util.Log.e("PantryViewModel", "Errore registrazione pasto: ${response.code()}")
@@ -588,7 +592,7 @@ data class PantryUiState(
     val isSearchingStores: Boolean = false,
     val storeSearchError: String? = null,
     val pantryId: Int? = null,
-    val pantryCreatorId: Int? = null,
+    val pantryCreatorId: String? = null,
     val kcalThreshold: Int? = null
 ) {
     fun updateLocationSortedSearchResults(results: List<StoreSearchResult>): PantryUiState {
