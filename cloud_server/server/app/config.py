@@ -15,10 +15,17 @@ JWT_SECRET_KEY = os.getenv(
 
 JWT_ALGORITHM = "HS256"
 
-JWT_EXPIRE_MINUTES = int(
+JWT_EXPIRE_ACCESS_TOKEN_MINUTES = int(
     os.getenv(
         "JWT_EXPIRE_MINUTES",
         "60",
+    )
+)
+
+JWT_EXPIRE_REFRESH_TOKEN_DAYS = int(
+    os.getenv(
+        "JWT_EXPIRE_MINUTES",
+        "30",
     )
 )
 

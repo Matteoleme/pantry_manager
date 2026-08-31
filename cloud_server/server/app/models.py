@@ -16,6 +16,7 @@ class User(Base):
     own_token_share: Mapped[str] = mapped_column(String(260), nullable=False)
     fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
     local: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    session_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     pantries: Mapped[list["Pantry"]] = relationship(
         back_populates="creator_user",
@@ -103,6 +104,7 @@ class Category(Base):
         ForeignKey("pantry.token_share"),
         primary_key=True,
     )
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
 class Product(Base):
@@ -120,6 +122,7 @@ class Product(Base):
         ForeignKey("pantry.token_share"),
         nullable=False,
     )
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     __table_args__ = (
         ForeignKeyConstraint(

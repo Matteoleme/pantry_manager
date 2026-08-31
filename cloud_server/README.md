@@ -5,6 +5,9 @@
 - SQLAlchemy ORM
 - Docker Compose
 
+## Support  
+Only single device and login per user is supported, doing login in one device invalidates other device's previous login.  
+
 ## Run
 ```bash
 docker compose up --build
@@ -22,26 +25,33 @@ The API will be available at:
 get health status  
 
 - `PUT /users/me/device`  
-update device token FCM  
+update device token FCM for notifications 
 
 - `POST /test/fcm`  
 test status of notification engine with FCM (send notification to yourself)  
 
 - `POST /auth/register`
 - `POST /auth/login`  
-register / login user  
+- `POST /auth/logout`  
+register / login / logout user  
 
-- `POST /auth/credentials`  
-change password of user (must provide the old password besides being logged in)
+- `POST /auth/refresh`  
+refresh access token  
+
+- `POST /auth/change_password`  
+change password of user (must provide the old password besides being logged in)  
+
+- `GET /me`  
+get user informations  
 
 - `GET /pantry`  
-retrieve pantry
+retrieve pantry informations (no associated list of products)
 
 - `POST /pantry-share-requests`  
 create request to join a pantry
 <!--EX. { "username": "alice11" } -->  
 
-- `GET /pantry-share-requests`  
+- `GET /retrieve-pantry-share-requests`  
 list all pending join requests sent to your pantry  
 
 - `POST /pantry/leave`  
@@ -49,21 +59,33 @@ get back to your own local pantry (exit shared pantry)
 
 - `POST /pantry-share-requests/{request_id}/approve`
 - `POST /pantry-share-requests/{request_id}/reject`  
-approve / reject pantry join request
+approve / reject pantry join request  
 
 - `GET /categories`  
-list all categories in your current pantry 
+list all categories in your current pantry  
 
-- `POST /categories`  
+- `POST /add_category`  
 create new category
 <!--EX. { "name": "breakfast" } -->  
 
-- `POST /products`  
+- `DELETE /delete_category/{category_name}`  
+delete category by name
+
+- `POST /add_product`  
 create new product  
+
+- `DELETE /delete_product/{product_id}`  
+delete product by id  
 
 - `POST /products/{product_id}/quantity`  
 update product quantity  
-<!-- EX. {"quantity": -5} -->
+<!-- EX. {"quantity": -5} -->  
+
+- `GET /products/{product_id}`  
+get product by id  
+
+- `GET /all_products`  
+list all products in your current pantry  
 
 - `POST /eat`  
 eat a list of products and their quantities   
@@ -86,27 +108,40 @@ update the kcal-threshold for your pantry
 <!-- GET list categories -->
 <!--POST new categories -->
 <!-- POST update product by diff quantity -->
-POST delete product
-POST modify product
-?? POST delete category
-?? GET events and threshold
 <!-- POST modify kcal_threshold -->
 <!-- POST eat(update products and events)(list of [product_id, quantity]) --> 
-<!---- (NOT TO DO) POST edit event eat ---->
 <!-- POST change_psw -->
 <!-- POST change pantry to local (exit shared pantry) -->
 <!-- GET get pending pantry share requests (only owner of pantry) -->
 <!-- GET daily/monthly statistics from events -->
+<!-- POST delete product (sets product.active to false) -->
+<!-- POST delete category (sets category.active to false) only if no product uses it -->
+?? POST modify product
+?? GET events and threshold
+<!-- GET /me retrieve user informations(id, name, username) -->
+<!-- GET /all_products retrieve list of products with no pantry info -->
+<!-- GET product_by_id (id in querystring) -->
+<!-- POST logout invalidates token jwt -->
 
 - TODO 
 <!-- modify product/event quantity integer -> float -->
 <!-- add "local" field to user for changing pantry -->
 <!-- modify request share based by username of pantry creator -->
-modify jwt expiration to unlimited
+<!-- modify add_product and add_category to return inserted item instead of pantry -->
+<!-- modify get/pantry to retrieve only pantry informations (id, creator:username, kcal_threshold) -->
+<!-- modify product_with_EAN in add_product check null-ean implementation -->
+?? add creator_id to event and tailor statistics for each user
+<!-- fix post/eat -->
+fix delete category (gives conflicts when not)
+fix retrieve share requests
+<!-- fix username/name (':' not allowed) -->
+<!-- modify jwt expiration to auto refresh allowing logout with stateless jwt -->
 <!-- add standard categories by default on pantry creation (dairy, fruit, vegetables, meat, drinks, other) -->
 <!-- only call pantry creation at user registration -->
 
 <!-- send notification on reaching kcal_threshold (if != 0) -->
 <!-- send notification on request share pantry -->
  
-<!-- when doing something on main page, return updated pantry with list of products -->
+<!-- NO when doing something on main page, return updated pantry with list of products -->
+
+<!-- check if needs Product.active.is_(True) -->

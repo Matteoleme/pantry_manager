@@ -1,12 +1,16 @@
 import hashlib
 from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
-from jose import JWTError, jwt
+from jose import JWTError, jwt, ExpiredSignatureError
+from fastapi import HTTPException, status
+
+from .models import User
 
 from .config import (
     JWT_ALGORITHM,
-    JWT_EXPIRE_MINUTES,
+    JWT_EXPIRE_ACCESS_TOKEN_MINUTES,
     JWT_SECRET_KEY,
+    JWT_EXPIRE_REFRESH_TOKEN_DAYS,
 )
 
 
@@ -45,24 +49,39 @@ def verify_password(password: str, hashed_password: str) -> bool:
  
 ######### JWT token authentication ##########
 ### JWT contains user_id of authenticated user
-def create_access_token(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=JWT_EXPIRE_MINUTES
-    )
-
+### double access and refresh tokens system
+def create_token(user: User, token_type: str, expires_delta: timedelta) -> str:
+    expire = datetime.now(timezone.utc) + expires_delta
     payload = {
-        "sub": str(user_id),
+        "sub": str(user.id),
+        "session_version": user.session_version,
+        "type": token_type,
         "exp": expire,
     }
-
     return jwt.encode(
         payload,
         JWT_SECRET_KEY,
         algorithm=JWT_ALGORITHM,
     )
 
+def create_access_token(user: User) -> str:
+   
+    return create_token(
+        user,
+        "access",
+        timedelta(minutes=JWT_EXPIRE_ACCESS_TOKEN_MINUTES),
+    )
 
-def decode_access_token(token: str) -> int:
+def create_refresh_token(user: User) -> str:
+   
+    return create_token(
+        user,
+        "refresh",
+        timedelta(days=JWT_EXPIRE_REFRESH_TOKEN_DAYS),
+    )
+
+
+def decode_access_token(token: str) -> dict:
     try:
         payload = jwt.decode(
             token,
@@ -70,12 +89,25 @@ def decode_access_token(token: str) -> int:
             algorithms=[JWT_ALGORITHM],
         )
 
-        subject = payload.get("sub")
+        user_id = payload.get("sub")
+        session_version = payload.get("session_version")
+        token_type=payload.get("type")
 
-        if subject is None:
-            raise ValueError("Missing subject")
+        if user_id is None or session_version is None or token_type is None:
+            raise ValueError("Invalid Token")
 
-        return int(subject)
-
+        if token_type != "access":
+            raise ValueError("Not an Access Token")
+        
+        return {
+            "user_id": int(user_id),
+            "session_version": int(session_version),
+        }
+    
+    except ExpiredSignatureError:
+        ### alert your access token is expired ###
+        raise ValueError("ACCESS_TOKEN_EXPIRED")
+    
     except (JWTError, ValueError):
         raise ValueError("Invalid access token")
+

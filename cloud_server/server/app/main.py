@@ -36,6 +36,7 @@ from .schemas import (
     ProductResponse,
     ProductQuantityUpdate,
     TokenResponse,
+    RefreshTokenRequest,
     LoginRequest,
     ChangePasswordRequest,
 
@@ -49,9 +50,17 @@ from .notifications import (
 from .auth import get_current_user
 from .security import (
     create_access_token,
+    create_refresh_token,
     generate_initial_token_share,
     hash_password,
     verify_password,
+)
+from jose import JWTError, jwt
+from .config import (
+    JWT_ALGORITHM,
+    JWT_EXPIRE_ACCESS_TOKEN_MINUTES,
+    JWT_SECRET_KEY,
+    JWT_EXPIRE_REFRESH_TOKEN_DAYS,
 )
 
 #create DB
@@ -168,26 +177,90 @@ def login(
             detail="Invalid username or password",
         )
 
-    access_token = create_access_token(user.id)
+    access_token = create_access_token(user)
+    refresh_token = create_refresh_token(user)
 
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         token_type="bearer",
     )
 
+########## USER refresh access_token ##########
+@app.post("/auth/refresh")
+def refresh(
+    payload: RefreshTokenRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        decoded = jwt.decode(
+            payload.refresh_token,
+            JWT_SECRET_KEY,
+            algorithms=JWT_ALGORITHM,
+        )
+
+        user_id = decoded.get("sub")
+        session_version = decoded.get("session_version")
+        token_type = decoded.get("type")
+
+        if user_id is None or session_version is None or token_type is None:
+            raise ValueError("Invalid refresh token")
+
+    except(JWTError, ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+
+    user = db.get(User, int(user_id))
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    # Invalidates refresh tokens after logout/password change
+    if user.session_version != int(session_version):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked",
+        )
+
+    new_access_token = create_access_token(user)
+
+    return {
+        "access_token":new_access_token,
+        "token_type":"bearer",
+    }
+
+
+########## USER logout ##########
+@app.post(
+    "/auth/logout",
+    #response_model=TokenResponse,
+)
+def logout(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.session_version += 1
+    db.commit()
+
+    return {
+        "status": "ok",
+        "message": "Logged out successfully"
+    }
+
 ########## USER change password ##########
-@app.post("/auth/credentials")
+@app.post("/auth/change_password")
 def change_password(
     payload: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # --------------------------------------------------------
     # Verify current password
-    # --------------------------------------------------------
-
     if not verify_password(
-        payload.current_password,
+        payload.oldPassword,
         current_user.password,
     ):
         raise HTTPException(
@@ -195,12 +268,9 @@ def change_password(
             detail="Current password is incorrect",
         )
 
-    # --------------------------------------------------------
     # Prevent reusing the same password
-    # --------------------------------------------------------
-
     if verify_password(
-        payload.new_password,
+        payload.newPassword,
         current_user.password,
     ):
         raise HTTPException(
@@ -208,13 +278,11 @@ def change_password(
             detail="New password must be different from current password",
         )
 
-    # --------------------------------------------------------
     # Hash and save new password
-    # --------------------------------------------------------
-
     current_user.password = hash_password(
-        payload.new_password
+        payload.newPassword
     )
+    current_user.session_version += 1
 
     db.commit()
 
@@ -258,13 +326,33 @@ def test_fcm(
         "message_id": response,
     }
 
+
+########## USER retrieve user info ##########
+@app.get(
+    "/me",
+    response_model=UserResponse,
+)
+def get_user_info(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+
+    user = UserResponse(
+        id = current_user.id,
+        name = current_user.name,
+        username = current_user.username,
+        local = current_user.local,
+    )
+    return user
+
+
 ########## PANTRY Retrieve ##########
 ### recurrent function ###
 def get_current_pantry(current_user: User, db: Session) -> Pantry:
     pantry = (
         db.query(Pantry)
         .filter(
-            Pantry.token_share == current_user.token_share
+            Pantry.token_share == current_user.token_share,
         )
         .first()
     )
@@ -285,9 +373,24 @@ def get_my_pantry(
     db: Session = Depends(get_db),
 ):
     pantry = get_current_pantry(current_user, db)
-    ### to retrieve all products: pantry.products
+    ### to retrieve all products: pantry.products+
+    if current_user.local:
+        creator_username = current_user.username
+    else:
+        creator_user = (
+            db.query(User.username)
+            .filter(User.id == pantry.creator)
+            .first()
+        )
+        
+        creator_username = creator_user.username
 
-    return pantry
+    my_pantry = PantryResponse(
+        id = pantry.id,
+        creator = creator_username,
+        kcal_threshold = pantry.kcal_threshold,
+    )
+    return my_pantry
 
 ########## PANTRY threshold modify ##########
 @app.post(
@@ -311,10 +414,9 @@ def modify_pantry_kcal_threshold(payload: PantryThresholdModify, current_user: U
 
 
 ########## PANTRY JOIN REQUEST Creation ##########
-### TODO check response_model (change to PantryResponse)
 @app.post(
     "/pantry-share-requests",
-    response_model=PantryShareRequestResponse,
+    #response_model=PantryShareRequestResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def request_pantry_access(payload: PantryShareRequestCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -395,21 +497,31 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
             print(f"failed to send FCM notification: {exc}")
     '''
 
-    my_pantry = get_current_pantry(current_user, db)
+    #my_pantry = get_current_pantry(current_user, db)
 
-    return my_pantry
+    return {
+        "status": "ok",
+        "message": "request sent successfully"
+    }
 
 
 ###### TODO check implementation with fields not in model (ex. requesting name and username)
 ########## PANTRY retrieve PENDING share requests ##########
 @app.get(
-    "/pantry-share-requests",
+    "/retrieve-pantry-share-requests",
     response_model=PantryShareRequestListResponse,
 )
 def get_pending_share_requests(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # you must be on your own pantry to see 
+    if current_user.local == False:
+        raise HTTPException(
+            status_code=400,
+            detail="You are not on your local pantry",
+        )
+    
     # The user must be the creator of the pantry
     pantry = (
         db.query(Pantry)
@@ -436,11 +548,8 @@ def get_pending_share_requests(
             User.id == PantryShareRequest.requesting_user_id,
         )
         .filter(
-            PantryShareRequest.pantry_token_share
-            == pantry.token_share,
-
-            PantryShareRequest.status
-            == "pending",
+            PantryShareRequest.pantry_token_share == pantry.token_share,
+            PantryShareRequest.status == "pending",
         )
         .order_by(
             PantryShareRequest.created_at.asc()
@@ -468,10 +577,9 @@ def get_pending_share_requests(
 
 
 ########## PANTRY JOIN REQUEST Approve ##########
-### TODO check response_model (change to PantryResponse)
 @app.post(
     "/pantry-share-requests/{request_id}/approve",
-    response_model=PantryShareRequestResponse,
+    #response_model=PantryShareRequestResponse,
 )
 def approve_pantry_request(request_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     request = db.get(
@@ -527,15 +635,18 @@ def approve_pantry_request(request_id: int, current_user: User = Depends(get_cur
 
     db.commit()
     db.refresh(request)
-    my_pantry = get_current_pantry(current_user, db)
+    #my_pantry = get_current_pantry(current_user, db)
 
-    return my_pantry
+    return  {
+        "status": "ok",
+        "message": "request accepted successfully"
+    }
+    
 
 ########## PANTRY JOIN REQUEST Reject ##########
-### TODO check response_model (change to PantryResponse)
 @app.post(
     "/pantry-share-requests/{request_id}/reject",
-    response_model=PantryShareRequestResponse,
+    #response_model=PantryShareRequestResponse,
 )
 def reject_pantry_request(request_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     request = db.get(
@@ -570,9 +681,12 @@ def reject_pantry_request(request_id: int, current_user: User = Depends(get_curr
 
     db.commit()
     db.refresh(request)
-    my_pantry = get_current_pantry(current_user, db)
+    #my_pantry = get_current_pantry(current_user, db)
 
-    return my_pantry
+    return {
+        "status": "ok",
+        "message": "request rejected successfully"
+    }
 
 ########## PANTRY Leave shared pantry ##########
 @app.post("/pantry/leave")
@@ -601,15 +715,12 @@ def leave_shared_pantry(
     db.commit()
     db.refresh(current_user)
 
-    '''
+    # = get_current_pantry(current_user, db)
     return {
         "status": "ok",
         "message": "Returned to your own pantry",
         "local": current_user.local,
     }
-    '''
-    my_pantry = get_current_pantry(current_user, db)
-    return my_pantry
 
 ########## CATEGORIES retrieve ##########
 @app.get(
@@ -623,7 +734,8 @@ def get_categories(
     categories = (
         db.query(Category)
         .filter(
-            Category.token_share == current_user.token_share
+            Category.token_share == current_user.token_share,
+            Category.active == True,
         )
         .order_by(Category.name)
         .all()
@@ -658,8 +770,66 @@ def create_category(
     db.commit()
     db.refresh(category)
 
-    
     return category
+
+########## CATEGORY delete by name ##########
+@app.delete(
+    "/delete_category/{category_name}",
+    #response_model=CategoryResponse,
+)
+def delete_category(
+    category_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ''' never reached code
+    pantry = get_current_pantry(current_user, db)
+
+    if pantry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No pantry associated with this user",
+        )
+    '''
+    #search category by name and if it is active
+    category = (
+        db.query(Category)
+        .filter(
+            Category.name == category_name,
+            Category.token_share == current_user.token_share,
+            Category.active == True,
+        )
+        .first()
+    )
+    if category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="category not found",
+        )
+
+    #check if any product with such category exist
+    products_with_cat = (
+        db.query(Product.id)
+        .filter(
+            Product.category == category_name,
+            Product.token_share == current_user.token_share,
+            Product.active == True,
+        )
+        .first()
+    )
+    if products_with_cat is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete category because products use it",
+        )
+
+    category.active = False
+    db.commit()
+
+    return {
+        "status": "ok",
+        "message": "category deleted successfully"
+    }
 
 ########## PRODUCT create ##########
 @app.post(
@@ -677,48 +847,24 @@ def create_product(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(f"Incorrect quantity, select a positive quantity"),
         )
-            
-    product_with_EAN_present = (
-        db.query(Product)
-        .filter(
-            Product.EAN == payload.EAN, 
-            Product.token_share ==current_user.token_share,
-        )
-        .first()
-    )
 
-    if product_with_EAN_present :
-        product = product_with_EAN_present
-        if product_with_EAN_present.kcal != payload.kcal:
-            raise HTTPException(
-            status_code=404,
-            detail="A product with same EAN is present in your pantry\nkcal of products mismatch",
-        )
-        new_quantity = (
-            product_with_EAN_present.quantity + payload.quantity
-        )
-        
-        # Update
-        product_with_EAN_present.quantity = new_quantity
-        db.commit()
-
-    else:
-
+    if payload.EAN == None or payload.EAN == "":         
         category = (
             db.query(Category)
             .filter(
                 Category.name == payload.category,
                 Category.token_share == current_user.token_share,
+                Category.active == True,
             )
             .first()
         )
-
+        
         if category is None:
             raise HTTPException(
                 status_code=404,
                 detail="Category not found",
             )
-
+        
         product = Product(
             name=payload.name,
             EAN=payload.EAN,
@@ -728,16 +874,99 @@ def create_product(
             kcal=payload.kcal,
             token_share=current_user.token_share,
         )
-
+        
         db.add(product)
         db.commit()
+        db.refresh(product)
+        return product
 
-    db.add(product)
+    else:
+        #check if i have a product with same EAN
+        product_with_EAN_present = (
+            db.query(Product)
+            .filter(
+                Product.EAN == payload.EAN, 
+                Product.token_share ==current_user.token_share,
+                Product.active == True,
+            )
+            .first()
+        )
+        
+        if product_with_EAN_present :
+            if product_with_EAN_present.kcal != payload.kcal or product_with_EAN_present.name != payload.name:
+                raise HTTPException(
+                status_code=409,
+                detail="A product with same EAN is present in your pantry\nPRODUCTS MISMATCH",
+            )
+            new_quantity = (
+                product_with_EAN_present.quantity + payload.quantity
+            )
+        
+            # Update quantity
+            product_with_EAN_present.quantity = new_quantity
+            db.commit()
+            db.refresh(product_with_EAN_present)
+            return product_with_EAN_present
+        
+        else:
+            #new product from scratch
+            product = Product(
+                name=payload.name,
+                EAN=payload.EAN,
+                unit=payload.unit,
+                quantity=payload.quantity,
+                category=payload.category,
+                kcal=payload.kcal,
+                token_share=current_user.token_share,
+            )
+            db.add(product)
+            db.commit()
+            db.refresh(product)
+            return product
+
+########## PRODUCT delete by id ##########
+@app.delete(
+    "/delete_product/{product_id}",
+    #response_model=CategoryResponse,
+)
+def delete_product(
+    product_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ''' never reached code
+    pantry = get_current_pantry(current_user, db)
+
+    if pantry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No pantry associated with this user",
+        )
+    '''
+    #check if product exists
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_id,
+            Product.token_share == current_user.token_share,
+            Product.active == True,
+        )
+        .first()
+    )
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found in current pantry",
+        )
+
+    product.active = False
+
     db.commit()
-    db.refresh(product)
     
-    return product
-
+    return {
+        "status": "ok",
+        "message": "product deleted successfully"
+    }
 
 ########## PRODUCT update quantity ##########
 @app.post(
@@ -750,17 +979,20 @@ def update_product_quantity(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    '''
     pantry = get_current_pantry(
         current_user,
         db,
     )
+    '''
 
     # Find product in the currently selected pantry
     product = (
         db.query(Product)
         .filter(
             Product.id == product_id,
-            Product.token_share == pantry.token_share,
+            Product.token_share == current_user.token_share,
+            Product.active == True,
         )
         .first()
     )
@@ -791,15 +1023,77 @@ def update_product_quantity(
     product.quantity = new_quantity
 
     db.commit()
+    '''
+    # Refresh pantry so the response contains the updated product list
+    db.refresh(pantry)
+    '''
     db.refresh(product)
 
     return product
+
+########## PRODUCT retrieve product by id ##########
+@app.get(
+    "/products/{product_id}",
+    response_model=ProductResponse,
+)
+def get_product_by_id(
+    product_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_id,
+            Product.token_share == current_user.token_share,
+            Product.active == True,
+        )
+        .first()
+    )
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    return product
+    '''
+    return ProductResponse(
+        id=product.id,
+        name=product.name,
+        EAN=product.EAN,
+        unit=product.unit,
+        quantity=product.quantity,
+        category=product.category,
+        kcal=product.kcal,
+    )'''
+
+########## PRODUCT retrieve all products ##########
+@app.get(
+    "/all_products",
+    response_model=list[ProductResponse],
+)
+def get_all_products(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    
+    products = (
+        db.query(Product)
+        .filter(
+            Product.token_share == current_user.token_share,
+            Product.active == True,
+        )
+        .all()
+    )
+    
+    return products
 
 ########## EVENT create ##########
 def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:
     unit = unit.lower()
     if unit == "unit":
-        return kcal*quantity/Decimal("100")
+        return kcal*quantity
     if unit == "kg" or unit == "l":
         return kcal*quantity*Decimal("10")
     raise ValueError(f"Unsupported product unit: {unit}")
@@ -807,7 +1101,6 @@ def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:
 
 @app.post(
     "/eat",
-    response_model=PantryResponse,
 )
 def create_event(
     payload: EventCreate,
@@ -825,6 +1118,7 @@ def create_event(
             .filter(
                 Product.id == selected_product.product_id,
                 Product.token_share == current_user.token_share,
+                Product.active == True,
             )
             .first()
         )
@@ -854,7 +1148,7 @@ def create_event(
         #create event eat
         event = Event(
             token_share=current_user.token_share,
-            product_id=selected_product.product_id,
+            product_id=product.id,
             event_date=event_date,
             kcal=event_kcal,
             quantity=requested_quantity,
@@ -869,34 +1163,33 @@ def create_event(
     #db.refresh(pantry)
 
 
+   
+    today = datetime.now(timezone.utc)
     #calculate kcal for today
-    '''
-    #if below does not work: date()....
     start = datetime.combine(
         today,
         time.min,
         tzinfo=timezone.utc,
     )
-
+    
     end = datetime.combine(
         today,
         time.max,
         tzinfo=timezone.utc,
     )
-
-    result = (
+    
+    actual_kcal = (
         db.query(func.coalesce(func.sum(Event.kcal), 0))
         .filter(
-            Event.token_share == token_share,
+            Event.token_share == current_user.token_share,
             Event.event_date >= start,
             Event.event_date <= end,
         )
         .scalar()
     )
-    return result
-    '''
-    today = datetime.now(timezone.utc).date()
-    actual_kcal = (
+    #return result
+    
+    '''actual_kcal = (
         db.query(func.coalesce(func.sum(Event.kcal),0))
         .filter(
             Event.token_share == current_user.token_share,
@@ -904,9 +1197,7 @@ def create_event(
         )
         .scalar()
     )
-     
-    pantry = get_current_pantry(current_user, db)
-
+    '''
     #TODO decomment
     '''
     if actual_kcal >= pantry.kcal_threshold and pantry.kcal_threshold != 0:
@@ -932,7 +1223,10 @@ def create_event(
             print(f"failed to send FCM notification: {exc}")        
             
     '''
-    return pantry
+    return {
+        "status":"ok",
+        "message": "event created successfully"
+    }
 
 ########## STATISTICS on kcal ##########
 
