@@ -125,7 +125,7 @@ fun CategoryFilterRow(
             FilterChip(
                 selected = selectedCategories.isEmpty() && !showOnlyOutOfStock,
                 onClick = onClearFilters,
-                label = { Text("Tutto") }
+                label = { Text("All") }
             )
         }
         items(allCategories) { category ->
@@ -139,7 +139,7 @@ fun CategoryFilterRow(
             FilterChip(
                 selected = showOnlyOutOfStock,
                 onClick = onToggleOutOfStock,
-                label = { Text("Finiti") },
+                label = { Text("Out of stock") },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
                     selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
@@ -274,13 +274,13 @@ fun ProductDetailDialog(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Elimina Prodotto",
+                        text = "Delete Product",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error
                     )
                     Text(
-                        text = "Sei sicuro di voler eliminare definitivamente '${product.name}' dalla tua dispensa?",
+                        text = "Are you sure you want to permanently delete '${product.name}' from your pantry?",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Row(
@@ -291,14 +291,14 @@ fun ProductDetailDialog(
                             onClick = { showDeleteConfirm = false },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Annulla")
+                            Text("Cancel")
                         }
                         Button(
                             onClick = onDelete,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Text("Elimina")
+                            Text("Delete")
                         }
                     }
                 }
@@ -313,7 +313,7 @@ fun ProductDetailDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Dettagli Prodotto",
+                            text = "Product Details",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -321,22 +321,22 @@ fun ProductDetailDialog(
                         IconButton(onClick = { showDeleteConfirm = true }) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Elimina Prodotto",
+                                contentDescription = "Delete Product",
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
 
-                    DetailItem(label = "Nome", value = product.name)
+                    DetailItem(label = "Name", value = product.name)
                     DetailItem(
-                        label = "Quantità", 
+                        label = "Quantity", 
                         value = "${formatQuantity(product.quantity, product.unit)} ${product.unit.symbol}"
                     )
-                    DetailItem(label = "Categoria", value = product.category)
+                    DetailItem(label = "Category", value = product.category)
                     val kcalLabel = when(product.unit) {
                         MeasurementUnit.KG -> "Kcal/100g"
                         MeasurementUnit.L -> "Kcal/100ml"
-                        MeasurementUnit.UNIT -> "Kcal/unità"
+                        MeasurementUnit.UNIT -> "Kcal/unit"
                     }
                     DetailItem(label = kcalLabel, value = product.kcal?.toString() ?: "N/A")
                     DetailItem(label = "EAN", value = product.ean ?: "N/A")
@@ -352,7 +352,7 @@ fun ProductDetailDialog(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Modifica")
+                            Text("Edit")
                         }
 
                         Button(
@@ -360,7 +360,7 @@ fun ProductDetailDialog(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Chiudi")
+                            Text("Close")
                         }
                     }
                 }

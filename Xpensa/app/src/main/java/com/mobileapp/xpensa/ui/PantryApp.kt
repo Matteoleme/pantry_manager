@@ -151,7 +151,20 @@ fun PantryApp() {
         currentDestination = backStack.last() as PantryDestination,
         onNavigate = { destination ->
             if (backStack.last() != destination) {
-                backStack.add(destination)
+                // If navigating to a main tab, we might want to clear the stack up to home
+                if (destination == PantryDestination.Home) {
+                    while (backStack.size > 1) {
+                        backStack.removeAt(backStack.size - 1)
+                    }
+                } else if (destination in listOf(PantryDestination.Consuma, PantryDestination.Trends, PantryDestination.Profile)) {
+                    // Logic for main tabs: keep home at base
+                    while (backStack.size > 1) {
+                        backStack.removeAt(backStack.size - 1)
+                    }
+                    backStack.add(destination)
+                } else {
+                    backStack.add(destination)
+                }
             }
         },
         onStatsClick = {
@@ -163,8 +176,28 @@ fun PantryApp() {
         NavDisplay(
             backStack = backStack,
             onBack = {
+                val current = backStack.last()
                 if (backStack.size > 1) {
-                    backStack.removeAt(backStack.size - 1)
+                    when (current) {
+                        PantryDestination.PantryInfo -> {
+                            // Detal to Parent
+                            backStack.removeAt(backStack.size - 1)
+                            // If parent is not Profile, we might want to ensure it is
+                            if (backStack.last() != PantryDestination.Profile) {
+                                backStack.add(PantryDestination.Profile)
+                            }
+                        }
+                        PantryDestination.Consuma, PantryDestination.Trends, PantryDestination.Profile -> {
+                            // Main tabs to Home
+                            while (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
+                        }
+                        else -> {
+                            // Default back
+                            backStack.removeAt(backStack.size - 1)
+                        }
+                    }
                 }
             },
             modifier = Modifier.fillMaxSize()

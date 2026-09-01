@@ -50,7 +50,7 @@ fun MealConsumptionScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "Registra Pasto",
+            text = "Register Meal",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -125,7 +125,7 @@ fun MealConsumptionScreen(
             ),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Conferma Pasto", style = MaterialTheme.typography.titleMedium)
+            Text("Confirm Meal", style = MaterialTheme.typography.titleMedium)
         }
     }
 
@@ -176,7 +176,7 @@ fun ConsumptionProductRow(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Disp: ${formatQuantity(product.quantity, product.unit)} ${product.unit.symbol}",
+                        text = "Stock: ${formatQuantity(product.quantity, product.unit)} ${product.unit.symbol}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (isError) MaterialTheme.colorScheme.error else Color.Unspecified
                     )
@@ -195,7 +195,7 @@ fun ConsumptionProductRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Consuma:", style = MaterialTheme.typography.bodyMedium)
+                    Text("Consume:", style = MaterialTheme.typography.bodyMedium)
                     OutlinedTextField(
                         value = quantityStr,
                         onValueChange = { onQuantityChange(it) },
@@ -231,16 +231,16 @@ fun SummaryDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+                ) {
                 Text(
-                    text = "Pasto Registrato",
+                    text = "Meal Registered",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = LightGreen
                 )
 
                 Text(
-                    text = "Totale Kcal consumate:",
+                    text = "Total Kcal consumed:",
                     style = MaterialTheme.typography.bodyLarge
                 )
 
@@ -256,7 +256,7 @@ fun SummaryDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Ottimo!")
+                    Text("Great!")
                 }
             }
         }

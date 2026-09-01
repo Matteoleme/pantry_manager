@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,17 +22,24 @@ fun ManageCategoriesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<String?>(null) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gestione Categorie") },
+                title = { Text("Manage Categories") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddCategoryDialog = true }) {
+                Icon(Icons.Default.Add, contentDescription = "Add Category")
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -50,11 +58,50 @@ fun ManageCategoriesScreen(
         }
     }
 
+    if (showAddCategoryDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showAddCategoryDialog = false
+                newCategoryName = ""
+            },
+            title = { Text("Add Category") },
+            text = {
+                OutlinedTextField(
+                    value = newCategoryName,
+                    onValueChange = { newCategoryName = it },
+                    label = { Text("Category Name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newCategoryName.isNotBlank()) {
+                            viewModel.addCategory(newCategoryName)
+                            newCategoryName = ""
+                            showAddCategoryDialog = false
+                        }
+                    }
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showAddCategoryDialog = false
+                    newCategoryName = ""
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     showDeleteDialog?.let { categoryName ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Elimina Categoria") },
-            text = { Text("Sei sicuro di voler eliminare la categoria '$categoryName'? I prodotti associati a questa categoria rimarranno ma la categoria non sarà più disponibile nei filtri.") },
+            title = { Text("Delete Category") },
+            text = { Text("Are you sure you want to delete the category '$categoryName'? Associated products will remain but the category will no longer be available in filters.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -62,12 +109,12 @@ fun ManageCategoriesScreen(
                         showDeleteDialog = null
                     }
                 ) {
-                    Text("Elimina", color = MaterialTheme.colorScheme.error)
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
-                    Text("Annulla")
+                    Text("Cancel")
                 }
             }
         )
@@ -97,7 +144,7 @@ fun CategoryItem(
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Elimina",
+                    contentDescription = "Delete",
                     tint = MaterialTheme.colorScheme.error
                 )
             }

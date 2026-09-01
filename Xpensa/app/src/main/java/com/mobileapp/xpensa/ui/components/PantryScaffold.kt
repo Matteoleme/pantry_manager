@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,14 +35,13 @@ fun PantryScaffold(
     var isSearchActive by remember { mutableStateOf(false) }
 
     val drawerItems = listOf(
-        DrawerItem("Nuovo Prodotto", Icons.Default.Add, PantryDestination.NewProduct),
-        DrawerItem("Scannerizza EAN", Icons.Rounded.QrCodeScanner, PantryDestination.NewProduct),
-        DrawerItem("Gestione Categorie", Icons.Default.Category, PantryDestination.ManageCategories),
-        DrawerItem("Modifica Soglia Kcal", Icons.Default.Settings, PantryDestination.PantryInfo),
-        DrawerItem("I Miei Negozi", Icons.Default.Store, PantryDestination.Stores),
-        DrawerItem("Statistiche Diarie", Icons.Default.BarChart),
-        DrawerItem("Lista Spesa", Icons.Default.ShoppingCart),
-        DrawerItem("Condividi", Icons.Default.Share)
+        DrawerItem("New Product", Icons.Default.Add, PantryDestination.NewProduct),
+        DrawerItem("Manage Categories", Icons.Default.Category, PantryDestination.ManageCategories),
+        DrawerItem("Pantry Settings", Icons.Default.Settings, PantryDestination.PantryInfo),
+        DrawerItem("My Stores", Icons.Default.Store, PantryDestination.Stores),
+        DrawerItem("Daily Stats", Icons.Default.BarChart),
+        DrawerItem("Shopping List", Icons.Default.ShoppingCart),
+        DrawerItem("Share", Icons.Default.Share)
     )
 
     val isAuthScreen = currentDestination == PantryDestination.Login || currentDestination == PantryDestination.Register
@@ -60,7 +58,7 @@ fun PantryScaffold(
                             selected = false,
                             onClick = {
                                 scope.launch { drawerState.close() }
-                                if (item.label == "Statistiche Diarie") {
+                                if (item.label == "Daily Stats") {
                                     onStatsClick()
                                 } else {
                                     item.destination?.let { onNavigate(it) }
@@ -83,7 +81,7 @@ fun PantryScaffold(
                                     value = searchQuery,
                                     onValueChange = onSearchQueryChange,
                                     modifier = Modifier.fillMaxWidth(),
-                                    placeholder = { Text("Cerca prodotto...") },
+                                    placeholder = { Text("Search product...") },
                                     singleLine = true,
                                     colors = TextFieldDefaults.colors(
                                         focusedContainerColor = Color.Transparent,
@@ -100,7 +98,7 @@ fun PantryScaffold(
                                             .size(32.dp)
                                             .padding(end = 8.dp)
                                     )
-                                    Text("Dispensa di Casa X")
+                                    Text("Home Pantry")
                                 }
                             }
                         },
@@ -121,7 +119,7 @@ fun PantryScaffold(
                         actions = {
                             if (!isSearchActive) {
                                 IconButton(onClick = { isSearchActive = true }) {
-                                    Icon(Icons.Default.Search, contentDescription = "Cerca")
+                                    Icon(Icons.Default.Search, contentDescription = "Search")
                                 }
                             }
                         }
@@ -138,8 +136,8 @@ fun PantryScaffold(
                             onClick = { onNavigate(PantryDestination.Home) }
                         )
                         NavigationBarItem(
-                            icon = { Icon(Icons.Default.Restaurant, contentDescription = "Consuma") },
-                            label = { Text("Consuma") },
+                            icon = { Icon(Icons.Default.Restaurant, contentDescription = "Consume") },
+                            label = { Text("Consume") },
                             selected = currentDestination == PantryDestination.Consuma,
                             onClick = { onNavigate(PantryDestination.Consuma) }
                         )
@@ -150,8 +148,8 @@ fun PantryScaffold(
                             onClick = { onNavigate(PantryDestination.Trends) }
                         )
                         NavigationBarItem(
-                            icon = { Icon(Icons.Default.Person, contentDescription = "Profilo") },
-                            label = { Text("Profilo") },
+                            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                            label = { Text("Profile") },
                             selected = currentDestination == PantryDestination.Profile,
                             onClick = { onNavigate(PantryDestination.Profile) }
                         )
@@ -159,14 +157,17 @@ fun PantryScaffold(
                 }
             },
             floatingActionButton = {
-                if (!isAuthScreen && currentDestination != PantryDestination.Stores) {
+                if (!isAuthScreen && (currentDestination == PantryDestination.Home || currentDestination == PantryDestination.Consuma)) {
                     FloatingActionButton(onClick = { onNavigate(PantryDestination.NewProduct) }) {
-                        Icon(Icons.Default.Add, contentDescription = "Aggiungi Prodotto")
+                        Icon(Icons.Default.Add, contentDescription = "Add Product")
                     }
                 }
             }
         ) { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding)) {
+            Box(modifier = Modifier
+                .padding(innerPadding)
+                .imePadding()
+            ) {
                 content()
             }
         }
