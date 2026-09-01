@@ -43,11 +43,13 @@ test status of notification engine with FCM (send notification to yourself)
 
 - `POST /auth/login`  
 ``` return { "access_token": "...", "refresh_token": "...", "token_type": "bearer"} ```  
+``` return {"detail": {"message": "Too many failed login attempts", "retry_after_minutes": "..."}} (429 TOO_MANY_REQUESTS) ```
 <!-- test ok -->
+
 - `POST /auth/logout`  
 ``` return {"status": "ok", "message": "Logged out successfully"} ```  
 <!-- test ok -->
-register / login / logout user  
+register / login (lockout for 15m after 5 attempts) / logout user  
 
 - `POST /auth/refresh`  
 refresh access token  
@@ -205,7 +207,7 @@ retrieve the total kcal reached every day in the last 30 days and the threshold 
 - TODO  
 <!-- decomment TODO of notifications (notifications.py)  and fix initialization -->
 <!-- add creator_id to event and kcal_threshold to users and tailor statistics for each user -->
-add login attempt limit to 5 wrong attempts (modify users table with attempt_n, date_attempt)
+<!-- add login attempt limit to 5 wrong attempts (modify users table with attempt_n, date_attempt) -->
 <!-- modify pantry response to add list of usernames in pantry -->
 <!-- modify product/event quantity integer -> float -->
 <!-- add "local" field to user for changing pantry -->

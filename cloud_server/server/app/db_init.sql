@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS users (
     fcm_token VARCHAR(512),
     local BOOLEAN NOT NULL DEFAULT TRUE,
     session_version INTEGER NOT NULL DEFAULT 0,
-    kcal_threshold INTEGER NOT NULL DEFAULT 0
+    kcal_threshold INTEGER NOT NULL DEFAULT 0,
+    login_attempt_n INTEGER NOT NULL DEFAULT 0,
+    login_date_last_attempt TIMESTAMPTZ
 );
 
 -- PANTRY

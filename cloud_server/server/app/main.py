@@ -65,6 +65,9 @@ from .config import (
     JWT_EXPIRE_REFRESH_TOKEN_DAYS,
 )
 
+LOCKOUT_ATTEMPTS = 5
+LOCKOUT_DURATION = timedelta(minutes=15)
+
 #create DB
 Base.metadata.create_all(bind=engine)
 
@@ -179,14 +182,57 @@ def login(
             detail="Invalid username or password",
         )
 
+    now = datetime.now(timezone.utc)
+    #check if account locked
+    if (
+        user.login_attempt_n >= LOCKOUT_ATTEMPTS
+        and user.login_date_last_attempt is not None
+    ):
+        lockout_until = user.login_date_last_attempt + LOCKOUT_DURATION
+        if now < lockout_until:
+            print("already locked")
+            remaining_seconds = int((lockout_until - now).total_seconds())
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "message": "Too many failed login attempts",
+                    "retry_after_minutes": f"{(remaining_seconds/60):.2f}",
+                },
+                headers={"Retry-after": f"{(remaining_seconds/60):.2f}"},
+            )
+        #lockout expired
+        user.login_attempt_n = 0
+        user.login_date_last_attempt = None
+
+    # check password
     if not verify_password(
         payload.password,
         user.password,
     ):
+        user.login_attempt_n += 1
+        user.login_date_last_attempt = now
+
+        db.commit()
+
+        if user.login_attempt_n >= LOCKOUT_ATTEMPTS:
+            print("just locked")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "message": "Too many failed login attempts",
+                    "retry_after_minutes": "30",
+                },
+                headers={"Retry-after": "30"},
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
+
+    #login successfull (reset counter)
+    user.login_attempt_n = 0
+    user.login_date_last_attempt = None
+    db.commit()
 
     access_token = create_access_token(user)
     refresh_token = create_refresh_token(user)

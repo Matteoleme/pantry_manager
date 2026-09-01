@@ -19,6 +19,12 @@ class User(Base):
     session_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     kcal_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    login_attempt_n: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    login_date_last_attempt: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     pantries: Mapped[list["Pantry"]] = relationship(
         back_populates="creator_user",
         cascade="all, delete-orphan",
