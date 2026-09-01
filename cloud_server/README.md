@@ -91,9 +91,16 @@ list all pending join requests sent to your pantry
 
 - `POST /pantry/leave`  
 get back to your own local pantry (exit shared pantry)  
-``` return {"detail": "You are already in your own pantry"} (400: bad request)```  
+``` return {"detail": "You are already in your own pantry"} (400: bad request) ```  
 ``` return {"status": "ok", "message": "Returned to your own pantry", "local": true} ```
 <!-- test ok --> 
+
+- `POST /pantry/remove/{username}`  
+remove user from your own pantry  
+``` return {"detail":"You are not in your own pantry"} (400) ```  
+``` return {"status": "ok", "message": "... removed successfully"} ```  
+ ``` return {"detail": "User not found"} (404) ```
+<!-- test -->
 
 - `POST /pantry-share-requests/{request_id}/approve`  
 ``` return {"status": "ok", "message": "request accepted successfully"} ```  
@@ -198,7 +205,8 @@ POST remove from your pantry (by username)
 - TODO  
 decomment TODO of notifications (main and notifications .py)  
 add creator_id to event and kcal_threshold to users and tailor statistics for each user
-modify pantry response to add list of usernames in pantry
+add login attempt limit to 5 wrong attempts (modify users table with attempt_n, date_attempt)
+<!-- modify pantry response to add list of usernames in pantry -->
 <!-- modify product/event quantity integer -> float -->
 <!-- add "local" field to user for changing pantry -->
 <!-- modify request share based by username of pantry creator -->

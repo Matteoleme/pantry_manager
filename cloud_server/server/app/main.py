@@ -547,8 +547,6 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
         "message": "request sent successfully"
     }
 
-
-###### TODO check implementation with fields not in model (ex. requesting name and username)
 ########## PANTRY retrieve PENDING share requests ##########
 @app.get(
     "/retrieve-pantry-share-requests",
@@ -770,6 +768,51 @@ def leave_shared_pantry(
         "status": "ok",
         "message": "Returned to your own pantry",
         "local": current_user.local,
+    }
+
+########## PANTRY Leave shared pantry ##########
+@app.post("/pantry/remove/{username}")
+def remove_user_from_pantry(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # User isnot in their own pantry.
+    if not current_user.local:
+        raise HTTPException(
+            status_code=400,
+            detail="You are not in your own pantry",
+        )
+    if current_user.username == username:
+        raise HTTPException(
+            status_code=400,
+            detail="This is your own pantry",
+        )
+    # Restore the user's own pantry.
+    user = (
+        db.query(User)
+        .filter(
+            User.username == username,
+            User.token_share == current_user.token_share,
+        )
+        .first()
+    )
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    user.token_share = user.own_token_share
+    user.local = True
+
+    db.commit()
+    #db.refresh(current_user)
+
+    # = get_current_pantry(current_user, db)
+    return {
+        "status": "ok",
+        "message": f"{username} removed successfully",
     }
 
 ########## CATEGORIES retrieve ##########
