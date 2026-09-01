@@ -67,12 +67,12 @@ get user informations
 
 - `GET /pantry`  
 retrieve pantry informations (no associated list of products)  
-``` return {"id": ..., "creator": "...", "kcal_threshold": ...} ```  
+``` return {"id": ..., "creator": "...", "kcal_threshold": ..., "users": [{"username": "..."}]} ```  
 <!-- test ok --> 
 
 - `POST /update-threshold`  
 update the kcal-threshold for your pantry  
-``` return {"id": ..., "creator": "...", "kcal_threshold": ...} ```  
+``` return {"id": ..., "creator": "...", "kcal_threshold": ..., "users": [{"username": "..."}]} ```   
 <!-- test ok --> 
 
 - `POST /pantry-share-requests`  
@@ -187,21 +187,24 @@ retrieve the total kcal reached every day in the last 30 days and the threshold 
 <!-- GET daily/monthly statistics from events -->
 <!-- POST delete product (sets product.active to false) -->
 <!-- POST delete category (sets category.active to false) only if no product uses it -->
-?? POST modify product
+?? POST modify product (name, category)
 ?? GET events and threshold
+POST remove from your pantry (by username)
 <!-- GET /me retrieve user informations(id, name, username) -->
 <!-- GET /all_products retrieve list of products with no pantry info -->
 <!-- GET product_by_id (id in querystring) -->
 <!-- POST logout invalidates token jwt -->
 
-- TODO 
+- TODO  
+decomment TODO of notifications (main and notifications .py)  
+add creator_id to event and kcal_threshold to users and tailor statistics for each user
+modify pantry response to add list of usernames in pantry
 <!-- modify product/event quantity integer -> float -->
 <!-- add "local" field to user for changing pantry -->
 <!-- modify request share based by username of pantry creator -->
 <!-- modify add_product and add_category to return inserted item instead of pantry -->
 <!-- modify get/pantry to retrieve only pantry informations (id, creator:username, kcal_threshold) -->
 <!-- modify product_with_EAN in add_product check null-ean implementation -->
-add creator_id to event and kcal_threshold to users and tailor statistics for each user
 <!-- fix post/eat -->
 <!-- fix delete category (gives conflicts when not) -->
 <!-- fix retrieve share requests -->

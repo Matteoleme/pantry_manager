@@ -32,7 +32,7 @@ class DeviceTokenUpdate(BaseModel):
 #################################### USERS ########################
 class UserCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    username: str = Field(min_length=1, max_length=100)
+    username: str = Field(min_length=8, max_length=100)
     password: str = Field(min_length=8, max_length=255)
     #token_share: str = Field(min_length=1, max_length=260)
 
@@ -54,6 +54,10 @@ class UserResponse(BaseModel):
     username: str
     local: bool
     #token_share: str
+
+class UserUsername(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    username: str
 
 #################################### PRODUCTS ########################
 class ProductCreate(BaseModel):
@@ -102,6 +106,7 @@ class PantryResponse(BaseModel):
     #token_share: str
     kcal_threshold: int
 
+    users :list[UserUsername] = Field(default_factory=list)
     #list of products in the response
     #products: list[ProductResponse] = Field(default_factory=list)
 

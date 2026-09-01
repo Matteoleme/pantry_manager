@@ -29,6 +29,7 @@ from .schemas import (
     PantryShareRequestListResponse,
     UserCreate,
     UserResponse,
+    UserUsername,
     DeviceTokenUpdate,
     CategoryCreate,
     CategoryResponse,
@@ -383,6 +384,8 @@ def get_my_pantry(
 ):
     pantry = get_current_pantry(current_user, db)
     ### to retrieve all products: pantry.products+
+    
+    #retrieve username of pantry creator
     if current_user.local:
         creator_username = current_user.username
     else:
@@ -394,10 +397,16 @@ def get_my_pantry(
         
         creator_username = creator_user.username
 
+    ### TODO check UserUsername type
+    all_users = (
+        db.query(User.username)
+        .filter(User.token_share == current_user.token_share)
+    )
     my_pantry = PantryResponse(
         id = pantry.id,
         creator = creator_username,
         kcal_threshold = pantry.kcal_threshold,
+        users = all_users,
     )
     return my_pantry
 
@@ -419,6 +428,7 @@ def modify_pantry_kcal_threshold(payload: PantryThresholdModify, current_user: U
     db.commit()
     db.refresh(pantry)
 
+    #retrieve username of pantry creator
     if current_user.local:
         creator_username = current_user.username
     else:
@@ -429,10 +439,18 @@ def modify_pantry_kcal_threshold(payload: PantryThresholdModify, current_user: U
         )
     
         creator_username = creator_user.username
+
+    ### TODO check
+    all_users = (
+        db.query(User.username)
+        .filter(User.token_share == current_user.token_share)
+    )
+
     my_pantry = PantryResponse(
         id = pantry.id,
         creator = creator_username,
         kcal_threshold = pantry.kcal_threshold,
+        users = all_users,
     )
 
     return my_pantry
