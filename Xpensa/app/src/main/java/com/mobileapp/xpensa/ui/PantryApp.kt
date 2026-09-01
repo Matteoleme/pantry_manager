@@ -18,6 +18,7 @@ import com.mobileapp.xpensa.ui.consumption.MealConsumptionScreen
 import com.mobileapp.xpensa.ui.categories.ManageCategoriesScreen
 import com.mobileapp.xpensa.ui.home.HomeScreen
 import com.mobileapp.xpensa.ui.products.EditProductScreen
+import com.mobileapp.xpensa.ui.products.ManageProductsScreen
 import com.mobileapp.xpensa.ui.products.NewProductScreen
 import com.mobileapp.xpensa.ui.profile.PantryInfoScreen
 import com.mobileapp.xpensa.ui.profile.ProfileScreen
@@ -187,7 +188,7 @@ fun PantryApp() {
                                 backStack.add(PantryDestination.Profile)
                             }
                         }
-                        PantryDestination.Consuma, PantryDestination.Trends, PantryDestination.Profile -> {
+                        PantryDestination.ManageCategories, PantryDestination.ManageProducts, PantryDestination.Consuma, PantryDestination.Trends, PantryDestination.Profile -> {
                             // Main tabs to Home
                             while (backStack.size > 1) {
                                 backStack.removeAt(backStack.size - 1)
@@ -266,6 +267,16 @@ fun PantryApp() {
                 }
                 PantryDestination.ManageCategories -> NavEntry(key) {
                     ManageCategoriesScreen(
+                        viewModel = pantryViewModel,
+                        onNavigateBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
+                        }
+                    )
+                }
+                PantryDestination.ManageProducts -> NavEntry(key) {
+                    ManageProductsScreen(
                         viewModel = pantryViewModel,
                         onNavigateBack = {
                             if (backStack.size > 1) {

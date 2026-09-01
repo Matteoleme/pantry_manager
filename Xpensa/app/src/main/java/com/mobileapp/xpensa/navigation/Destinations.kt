@@ -32,6 +32,9 @@ sealed interface PantryDestination : NavKey {
     data object ManageCategories : PantryDestination
 
     @Serializable
+    data object ManageProducts : PantryDestination
+
+    @Serializable
     data object PantryInfo : PantryDestination
 
     @Serializable

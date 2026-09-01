@@ -36,6 +36,7 @@ fun PantryScaffold(
 
     val drawerItems = listOf(
         DrawerItem("New Product", Icons.Default.Add, PantryDestination.NewProduct),
+        DrawerItem("Manage Products", Icons.Default.Inventory, PantryDestination.ManageProducts),
         DrawerItem("Manage Categories", Icons.Default.Category, PantryDestination.ManageCategories),
         DrawerItem("Pantry Settings", Icons.Default.Settings, PantryDestination.PantryInfo),
         DrawerItem("My Stores", Icons.Default.Store, PantryDestination.Stores),
