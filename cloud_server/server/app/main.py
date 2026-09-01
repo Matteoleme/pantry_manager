@@ -745,7 +745,7 @@ def get_categories(
 
 ########## CATEGORY create ##########
 @app.post(
-    "/categories",
+    "/add_category",
     response_model=CategoryResponse,
 )
 def create_category(
@@ -770,6 +770,17 @@ def create_category(
     db.commit()
     db.refresh(category)
 
+    '''
+    categories = (
+        db.query(Category)
+        .filter(
+            Category.token_share == current_user.token_share
+        )
+        .order_by(Category.name)
+        .all()
+    )
+    '''
+    
     return category
 
 ########## CATEGORY delete by name ##########
@@ -815,17 +826,16 @@ def delete_category(
             Product.token_share == current_user.token_share,
             Product.active == True,
         )
-        .first()
     )
-    if products_with_cat is not None:
+    if products_with_cat:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cannot delete category because products use it",
         )
-
+    
     category.active = False
     db.commit()
-
+    
     return {
         "status": "ok",
         "message": "category deleted successfully"
@@ -833,7 +843,7 @@ def delete_category(
 
 ########## PRODUCT create ##########
 @app.post(
-    "/products",
+    "/add_product",
     response_model=ProductResponse,
 )
 def create_product(
