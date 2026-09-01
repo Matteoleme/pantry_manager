@@ -399,16 +399,32 @@ def get_my_pantry(
 )
 def modify_pantry_kcal_threshold(payload: PantryThresholdModify, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):    
     
-    my_pantry = get_current_pantry(current_user, db)
+    pantry = get_current_pantry(current_user, db)
 
     if payload.kcal_threshold < 0:
         raise HTTPException(
             status_code=404,
             detail="Negative threshold",
         )
-    my_pantry.kcal_threshold = payload.kcal_threshold
+    pantry.kcal_threshold = payload.kcal_threshold
     db.commit()
-    db.refresh(my_pantry)
+    db.refresh(pantry)
+
+    if current_user.local:
+        creator_username = current_user.username
+    else:
+        creator_user = (
+            db.query(User.username)
+            .filter(User.id == pantry.creator)
+            .first()
+        )
+    
+        creator_username = creator_user.username
+    my_pantry = PantryResponse(
+        id = pantry.id,
+        creator = creator_username,
+        kcal_threshold = pantry.kcal_threshold,
+    )
 
     return my_pantry
 
@@ -826,6 +842,7 @@ def delete_category(
             Product.token_share == current_user.token_share,
             Product.active == True,
         )
+        .first()
     )
     if products_with_cat:
         raise HTTPException(
@@ -835,6 +852,7 @@ def delete_category(
     
     category.active = False
     db.commit()
+    db.refresh(category)
     
     return {
         "status": "ok",
