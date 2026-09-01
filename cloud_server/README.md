@@ -71,7 +71,7 @@ retrieve pantry informations (no associated list of products)
 <!-- test ok --> 
 
 - `POST /update-threshold`  
-update the kcal-threshold for your pantry  
+update the kcal-threshold for the user  
 ``` return {"id": ..., "creator": "...", "kcal_threshold": ..., "users": [{"username": "..."}]} ```   
 <!-- test ok --> 
 
@@ -100,7 +100,7 @@ remove user from your own pantry
 ``` return {"detail":"You are not in your own pantry"} (400) ```  
 ``` return {"status": "ok", "message": "... removed successfully"} ```  
  ``` return {"detail": "User not found"} (404) ```
-<!-- test -->
+<!-- test ok -->
 
 - `POST /pantry-share-requests/{request_id}/approve`  
 ``` return {"status": "ok", "message": "request accepted successfully"} ```  
@@ -165,7 +165,7 @@ list all products in your current pantry
 eat a list of products and their quantities   
 <!-- EX. {product_id, quantity},{product_id, quantity}... -->
 ``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "not_exceeded"} ```  
-``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "exceeded: ..."} ```  
+``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "exceeded: ... / ..."} ```  
 ``` return {"detail": "Insufficient quantity for product: ..."} (400) ``` 
 <!-- test ok (NO NOTIFICATION) -->
 
@@ -196,15 +196,15 @@ retrieve the total kcal reached every day in the last 30 days and the threshold 
 <!-- POST delete category (sets category.active to false) only if no product uses it -->
 ?? POST modify product (name, category)
 ?? GET events and threshold
-POST remove from your pantry (by username)
+<!-- POST remove from your pantry (by username) -->
 <!-- GET /me retrieve user informations(id, name, username) -->
 <!-- GET /all_products retrieve list of products with no pantry info -->
 <!-- GET product_by_id (id in querystring) -->
 <!-- POST logout invalidates token jwt -->
 
 - TODO  
-decomment TODO of notifications (main and notifications .py)  
-add creator_id to event and kcal_threshold to users and tailor statistics for each user
+<!-- decomment TODO of notifications (notifications.py)  and fix initialization -->
+<!-- add creator_id to event and kcal_threshold to users and tailor statistics for each user -->
 add login attempt limit to 5 wrong attempts (modify users table with attempt_n, date_attempt)
 <!-- modify pantry response to add list of usernames in pantry -->
 <!-- modify product/event quantity integer -> float -->

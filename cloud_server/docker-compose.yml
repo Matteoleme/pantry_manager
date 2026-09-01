@@ -12,6 +12,7 @@ services:
       - "8000:8000"
     volumes:
       - ./server/app:/app/app
+      - ./firebase/service-account.json:/run/secrets/firebase-service-account.json:ro
     restart: unless-stopped
 
   postgres:
@@ -31,22 +32,6 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
-
-# TODO
-  server:
-    build: ./server
-    environment:
-      DATABASE_URL: postgresql://pantry:pantry123!@postgres:5432/pantry
-      JWT_SECRET_KEY: Pantry123!
-      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-service-account.json
-
-    volumes:
-      - ./firebase/service-account.json:/run/secrets/firebase-service-account.json:ro
-
-    depends_on:
-      postgres:
-        condition: service_healthy
-##
 
 volumes:
   postgres_data:
