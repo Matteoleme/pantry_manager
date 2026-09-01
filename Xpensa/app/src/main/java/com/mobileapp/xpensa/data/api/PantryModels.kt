@@ -41,6 +41,11 @@ data class EventCreate(
 )
 
 @Serializable
+data class ThresholdUpdate(
+    @SerialName("kcal_threshold") val kcalThreshold: Int
+)
+
+@Serializable
 data class PantryResponse(
     val id: Int,
     val creator: String,

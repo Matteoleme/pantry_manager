@@ -5,13 +5,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Kitchen
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mobileapp.xpensa.ui.PantryViewModel
 
@@ -22,6 +22,12 @@ fun PantryInfoScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var kcalThresholdInput by remember { mutableStateOf("") }
+    var isEditing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.kcalThreshold) {
+        kcalThresholdInput = uiState.kcalThreshold?.toString() ?: ""
+    }
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
         viewModel.refreshData()
@@ -62,9 +68,54 @@ fun PantryInfoScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     InfoRow(label = "ID Dispensa", value = uiState.pantryId?.toString() ?: "N/D")
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    InfoRow(label = "ID Creatore", value = uiState.pantryCreatorId?.toString() ?: "N/D")
+                    InfoRow(label = "Username", value = uiState.pantryCreatorId ?: "N/D")
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    InfoRow(label = "Soglia Kcal", value = "${uiState.kcalThreshold ?: "N/D"} kcal")
+                    
+                    if (isEditing) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            OutlinedTextField(
+                                value = kcalThresholdInput,
+                                onValueChange = { kcalThresholdInput = it },
+                                label = { Text("Soglia Kcal") },
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = KeyboardType.Number
+                                ),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = {
+                                    val newThreshold = kcalThresholdInput.toIntOrNull()
+                                    if (newThreshold != null) {
+                                        viewModel.updateThreshold(newThreshold)
+                                        isEditing = false
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Save, 
+                                    contentDescription = "Salva",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            InfoRowContent(label = "Soglia Kcal", value = "${uiState.kcalThreshold ?: "N/D"} kcal")
+                            TextButton(onClick = { isEditing = true }) {
+                                Text("Modifica")
+                            }
+                        }
+                    }
                 }
             }
 
@@ -86,7 +137,12 @@ private fun InfoRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, fontWeight = FontWeight.SemiBold)
-        Text(text = value, color = MaterialTheme.colorScheme.secondary)
+        InfoRowContent(label = label, value = value)
     }
+}
+
+@Composable
+private fun InfoRowContent(label: String, value: String) {
+    Text(text = label, fontWeight = FontWeight.SemiBold)
+    Text(text = value, color = MaterialTheme.colorScheme.secondary)
 }

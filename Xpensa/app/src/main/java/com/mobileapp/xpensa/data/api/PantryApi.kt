@@ -20,6 +20,9 @@ interface PantryApi {
     @POST("add_category")
     suspend fun createCategory(@Body category: CategoryCreate): Response<CategoryResponse>
 
+    @POST("update-threshold")
+    suspend fun updateThreshold(@Body request: ThresholdUpdate): Response<PantryResponse>
+
     @POST("eat")
     suspend fun eat(@Body event: EventCreate): Response<PantryResponse>
 

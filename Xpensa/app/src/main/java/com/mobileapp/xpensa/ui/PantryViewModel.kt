@@ -22,6 +22,7 @@ import com.mobileapp.xpensa.data.api.EventProduct
 import com.mobileapp.xpensa.data.api.PantryResponse
 import com.mobileapp.xpensa.data.api.ProductCreate
 import com.mobileapp.xpensa.data.api.ProductResponse
+import com.mobileapp.xpensa.data.api.ThresholdUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -437,6 +438,23 @@ class PantryViewModel(
 
     fun onSearchQueryChange(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun updateThreshold(newThreshold: Int) {
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.updateThreshold(ThresholdUpdate(newThreshold))
+                if (response.isSuccessful && response.body() != null) {
+                    _uiState.update { state ->
+                        state.copy(kcalThreshold = response.body()!!.kcalThreshold)
+                    }
+                } else {
+                    android.util.Log.e("PantryViewModel", "Errore aggiornamento soglia: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Eccezione aggiornamento soglia", e)
+            }
+        }
     }
     
     fun selectProduct(product: Product?) {

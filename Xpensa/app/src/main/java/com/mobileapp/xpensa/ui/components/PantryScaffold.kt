@@ -39,6 +39,7 @@ fun PantryScaffold(
         DrawerItem("Nuovo Prodotto", Icons.Default.Add, PantryDestination.NewProduct),
         DrawerItem("Scannerizza EAN", Icons.Rounded.QrCodeScanner, PantryDestination.NewProduct),
         DrawerItem("Gestione Categorie", Icons.Default.Category, PantryDestination.ManageCategories),
+        DrawerItem("Modifica Soglia Kcal", Icons.Default.Settings, PantryDestination.PantryInfo),
         DrawerItem("I Miei Negozi", Icons.Default.Store, PantryDestination.Stores),
         DrawerItem("Statistiche Diarie", Icons.Default.BarChart),
         DrawerItem("Lista Spesa", Icons.Default.ShoppingCart),
