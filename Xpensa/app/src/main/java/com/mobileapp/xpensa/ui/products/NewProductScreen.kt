@@ -54,6 +54,20 @@ fun NewProductScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(uiState.addProductSuccess) {
+        if (uiState.addProductSuccess) {
+            viewModel.resetAddProductState()
+            onNavigateBack()
+        }
+    }
+
+    LaunchedEffect(uiState.addProductError) {
+        uiState.addProductError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.resetAddProductState()
+        }
+    }
+
     LaunchedEffect(uiState.lastScannedProduct) {
         uiState.lastScannedProduct?.let { scanned ->
             name = scanned.name
@@ -283,10 +297,9 @@ fun NewProductScreen(
                                     ean = ean.ifBlank { null }
                                 )
                                 viewModel.addProduct(product)
-                                onNavigateBack()
                             }
                         },
-                        enabled = isFormValid,
+                        enabled = isFormValid && !uiState.isAddingProduct,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = LightGreen,
@@ -301,7 +314,7 @@ fun NewProductScreen(
                 }
             }
 
-            if (uiState.isFetchingProduct) {
+            if (uiState.isFetchingProduct || uiState.isAddingProduct) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.Black.copy(alpha = 0.3f)

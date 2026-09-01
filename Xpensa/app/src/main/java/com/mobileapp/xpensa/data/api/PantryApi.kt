@@ -35,6 +35,12 @@ interface PantryApi {
     @DELETE("delete_product/{product_id}")
     suspend fun deleteProduct(@Path("product_id") productId: Int): Response<Unit>
 
+    @POST("products/{product_id}/quantity")
+    suspend fun updateProductQuantity(
+        @Path("product_id") productId: Int,
+        @Body request: QuantityUpdate
+    ): Response<Unit>
+
     companion object {
         const val BASE_URL = NetworkConfig.BACKEND_BASE_URL
     }

@@ -15,6 +15,11 @@ data class ProductResponse(
 )
 
 @Serializable
+data class QuantityUpdate(
+    val quantity: Double
+)
+
+@Serializable
 data class ProductCreate(
     val name: String,
     @SerialName("EAN") val ean: String?,

@@ -22,6 +22,7 @@ import com.mobileapp.xpensa.data.api.EventProduct
 import com.mobileapp.xpensa.data.api.PantryResponse
 import com.mobileapp.xpensa.data.api.ProductCreate
 import com.mobileapp.xpensa.data.api.ProductResponse
+import com.mobileapp.xpensa.data.api.QuantityUpdate
 import com.mobileapp.xpensa.data.api.ThresholdUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +36,11 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import retrofit2.Response
 import java.time.LocalDate
+import java.util.*
 
 class PantryViewModel(
     application: Application,
@@ -205,6 +210,7 @@ class PantryViewModel(
     }
 
     fun addProduct(product: Product) {
+        _uiState.update { it.copy(isAddingProduct = true, addProductError = null, addProductSuccess = false) }
         viewModelScope.launch {
             try {
                 val createRequest = mapToCreate(product)
@@ -214,28 +220,67 @@ class PantryViewModel(
                     val savedProduct = mapProductResponse(response.body()!!)
                     
                     _uiState.update { state ->
-                        // Controlliamo se il prodotto restituito dal server esiste già nella nostra lista locale
-                        // (Succede se il backend ha fatto il "merge" delle quantità su un prodotto esistente)
                         val alreadyExists = state.products.any { it.id == savedProduct.id }
-                        
                         val newProducts = if (alreadyExists) {
-                            // Se esiste già, aggiorniamo solo quel prodotto con i nuovi dati (quantità aggiornata)
                             state.products.map { if (it.id == savedProduct.id) savedProduct else it }
                         } else {
-                            // Se non esiste, lo aggiungiamo come nuovo elemento alla lista
                             state.products + savedProduct
                         }
-                        
-                        viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
-                        state.copy(products = newProducts)
+                        state.copy(
+                            products = newProducts,
+                            isAddingProduct = false,
+                            addProductSuccess = true
+                        )
                     }
+                    dataStoreManager.saveProducts(uiState.value.products)
                 } else {
-                    android.util.Log.e("PantryViewModel", "Errore creazione prodotto: ${response.code()}")
+                    val errorMessage = parseErrorMessage(response)
+                    _uiState.update { it.copy(
+                        isAddingProduct = false,
+                        addProductError = errorMessage
+                    ) }
+                    android.util.Log.e("PantryViewModel", "Errore creazione prodotto: $errorMessage")
                 }
             } catch (e: Exception) {
+                _uiState.update { it.copy(
+                    isAddingProduct = false,
+                    addProductError = e.message ?: "Errore imprevisto durante l'aggiunta"
+                ) }
                 android.util.Log.e("PantryViewModel", "Eccezione creazione prodotto", e)
             }
         }
+    }
+
+    private fun parseErrorMessage(response: Response<*>): String {
+        return try {
+            val errorBody = response.errorBody()?.string() ?: return "Errore sconosciuto (${response.code()})"
+            val jsonElement = json.parseToJsonElement(errorBody)
+            val jsonObject = jsonElement.jsonObject
+            
+            // Cerca "detail" (FastAPI standard)
+            val detail = jsonObject["detail"]
+            if (detail != null) {
+                when (detail) {
+                    is kotlinx.serialization.json.JsonArray -> {
+                        detail.joinToString { 
+                            try { it.jsonObject["msg"]?.jsonPrimitive?.content ?: "Errore" } catch(e: Exception) { "Errore" }
+                        }
+                    }
+                    is kotlinx.serialization.json.JsonObject -> {
+                        detail["msg"]?.jsonPrimitive?.content ?: detail.toString()
+                    }
+                    else -> detail.jsonPrimitive.content
+                }
+            } else {
+                "Errore: ${response.code()}"
+            }
+        } catch (e: Exception) {
+            "Errore: ${response.code()}"
+        }
+    }
+
+    fun resetAddProductState() {
+        _uiState.update { it.copy(addProductSuccess = false, addProductError = null) }
     }
 
     private fun mapToCreate(p: Product): ProductCreate {
@@ -249,13 +294,39 @@ class PantryViewModel(
         )
     }
 
+    private fun updateProductQuantityOnServer(productId: String, delta: Double) {
+        viewModelScope.launch {
+            try {
+                val numericId = productId.toIntOrNull() ?: return@launch
+                android.util.Log.d("PantryViewModel", "Invio variazione al server: id=$numericId, delta=$delta")
+                val response = pantryApi.updateProductQuantity(numericId, QuantityUpdate(delta))
+                if (!response.isSuccessful) {
+                    android.util.Log.e("PantryViewModel", "Errore invio variazione server: ${response.code()}")
+                } else {
+                    android.util.Log.d("PantryViewModel", "Variazione salvata con successo")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Eccezione invio variazione server", e)
+            }
+        }
+    }
+
     fun updateProduct(updatedProduct: Product) {
+        val oldProduct = uiState.value.products.find { it.id == updatedProduct.id }
+        val delta = updatedProduct.quantity - (oldProduct?.quantity ?: 0.0)
+
         _uiState.update { state ->
             val newProducts = state.products.map { 
                 if (it.id == updatedProduct.id) updatedProduct else it 
             }
-            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
             state.copy(products = newProducts)
+        }
+        
+        viewModelScope.launch {
+            dataStoreManager.saveProducts(uiState.value.products)
+            if (delta != 0.0) {
+                updateProductQuantityOnServer(updatedProduct.id, delta)
+            }
         }
     }
 
@@ -306,18 +377,12 @@ class PantryViewModel(
                 if (response.isSuccessful) {
                     android.util.Log.d("PantryViewModel", "Chiamata /eat riuscita!")
                     
-                    // Poiché PantryResponse non contiene più i prodotti, rinfreschiamo tutto
                     refreshData()
                     
                     _uiState.update { state ->
-                        val newDailyCalories = state.dailyCalories + mealKcal
-                        
-                        viewModelScope.launch {
-                            dataStoreManager.saveDailyCalories(newDailyCalories, today)
-                        }
-
-                        state.copy(dailyCalories = newDailyCalories)
+                        state.copy(dailyCalories = state.dailyCalories + mealKcal)
                     }
+                    dataStoreManager.saveDailyCalories(uiState.value.dailyCalories, today)
                 } else {
                     android.util.Log.e("PantryViewModel", "Errore registrazione pasto: ${response.code()}")
                 }
@@ -337,13 +402,12 @@ class PantryViewModel(
                     val serverCategoryName = response.body()!!.name
                     _uiState.update { state ->
                         if (!state.allCategories.contains(serverCategoryName)) {
-                            val newCategories = state.allCategories + serverCategoryName
-                            viewModelScope.launch { dataStoreManager.saveCategories(newCategories) }
-                            state.copy(allCategories = newCategories)
+                            state.copy(allCategories = state.allCategories + serverCategoryName)
                         } else {
                             state
                         }
                     }
+                    dataStoreManager.saveCategories(uiState.value.allCategories)
                 } else {
                     android.util.Log.e("PantryViewModel", "Errore creazione categoria: ${response.code()}")
                 }
@@ -359,10 +423,9 @@ class PantryViewModel(
                 val response = pantryApi.deleteCategory(categoryName)
                 if (response.isSuccessful) {
                     _uiState.update { state ->
-                        val newCategories = state.allCategories.filter { it != categoryName }
-                        viewModelScope.launch { dataStoreManager.saveCategories(newCategories) }
-                        state.copy(allCategories = newCategories)
+                        state.copy(allCategories = state.allCategories.filter { it != categoryName })
                     }
+                    dataStoreManager.saveCategories(uiState.value.allCategories)
                 } else {
                     android.util.Log.e("PantryViewModel", "Errore eliminazione categoria: ${response.code()}")
                 }
@@ -379,10 +442,9 @@ class PantryViewModel(
                 val response = pantryApi.deleteProduct(numericId)
                 if (response.isSuccessful) {
                     _uiState.update { state ->
-                        val newProducts = state.products.filter { it.id != productId }
-                        viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
-                        state.copy(products = newProducts)
+                        state.copy(products = state.products.filter { it.id != productId })
                     }
+                    dataStoreManager.saveProducts(uiState.value.products)
                 } else {
                     android.util.Log.e("PantryViewModel", "Errore eliminazione prodotto: ${response.code()}")
                 }
@@ -393,36 +455,61 @@ class PantryViewModel(
     }
 
     fun incrementQuantity(productId: String) {
+        var delta = 0.0
         _uiState.update { state ->
-            val newProducts = state.products.map { product ->
-                if (product.id == productId) {
-                    val delta = if (product.unit == MeasurementUnit.UNIT) 1.0 else 0.5
-                    product.copy(quantity = product.quantity + delta)
-                } else {
-                    product
+            val product = state.products.find { it.id == productId }
+            if (product != null) {
+                delta = if (product.unit == MeasurementUnit.UNIT) 1.0 else 0.5
+                val newQty = product.quantity + delta
+                val newProducts = state.products.map { p ->
+                    if (p.id == productId) p.copy(quantity = newQty) else p
                 }
+                state.copy(products = newProducts)
+            } else {
+                state
             }
-            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
-            state.copy(products = newProducts)
+        }
+        if (delta > 0.0) {
+            viewModelScope.launch {
+                dataStoreManager.saveProducts(uiState.value.products)
+                updateProductQuantityOnServer(productId, delta)
+            }
         }
     }
 
     fun decrementQuantity(productId: String) {
+        var delta = 0.0
         _uiState.update { state ->
-            val newProducts = state.products.map { product ->
-                if (product.id == productId && product.quantity > 0) {
-                    val delta = if (product.unit == MeasurementUnit.UNIT) 1.0 else 0.5
-                    product.copy(quantity = maxOf(0.0, product.quantity - delta))
-                } else {
-                    product
+            val product = state.products.find { it.id == productId }
+            if (product != null && product.quantity > 0) {
+                delta = if (product.unit == MeasurementUnit.UNIT) 1.0 else 0.5
+                // Non possiamo decrementare più di quanto abbiamo
+                val effectiveDelta = minOf(delta, product.quantity)
+                val newQty = product.quantity - effectiveDelta
+                
+                // Salviamo il delta negativo da inviare al server
+                delta = -effectiveDelta
+                
+                val newProducts = state.products.map { p ->
+                    if (p.id == productId) p.copy(quantity = newQty) else p
                 }
+                state.copy(products = newProducts)
+            } else {
+                state
             }
-            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
-            state.copy(products = newProducts)
+        }
+        if (delta < 0.0) {
+            viewModelScope.launch {
+                dataStoreManager.saveProducts(uiState.value.products)
+                updateProductQuantityOnServer(productId, delta)
+            }
         }
     }
 
     fun updateQuantity(productId: String, newQuantity: Double) {
+        val oldProduct = uiState.value.products.find { it.id == productId }
+        val delta = newQuantity - (oldProduct?.quantity ?: 0.0)
+
         _uiState.update { state ->
             val newProducts = state.products.map { product ->
                 if (product.id == productId) {
@@ -431,8 +518,13 @@ class PantryViewModel(
                     product
                 }
             }
-            viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
             state.copy(products = newProducts)
+        }
+        viewModelScope.launch {
+            dataStoreManager.saveProducts(uiState.value.products)
+            if (delta != 0.0) {
+                updateProductQuantityOnServer(productId, delta)
+            }
         }
     }
 
@@ -502,12 +594,12 @@ class PantryViewModel(
     fun toggleOutOfStockFilter() {
         _uiState.update { state ->
             val newState = !state.showOnlyOutOfStock
-            viewModelScope.launch { dataStoreManager.saveShowOutOfStock(newState) }
             state.copy(
                 showOnlyOutOfStock = newState,
                 selectedCategories = if (newState) emptySet() else state.selectedCategories
             )
         }
+        viewModelScope.launch { dataStoreManager.saveShowOutOfStock(uiState.value.showOnlyOutOfStock) }
     }
 
     fun toggleAllCategories(all: Boolean) {
@@ -569,18 +661,16 @@ class PantryViewModel(
 
     fun addStore(store: Store) {
         _uiState.update { state ->
-            val newStores = state.stores + store
-            viewModelScope.launch { dataStoreManager.saveStores(newStores) }
-            state.copy(stores = newStores)
+            state.copy(stores = state.stores + store)
         }
+        viewModelScope.launch { dataStoreManager.saveStores(uiState.value.stores) }
     }
 
     fun deleteStore(storeId: String) {
         _uiState.update { state ->
-            val newStores = state.stores.filter { it.id != storeId }
-            viewModelScope.launch { dataStoreManager.saveStores(newStores) }
-            state.copy(stores = newStores)
+            state.copy(stores = state.stores.filter { it.id != storeId })
         }
+        viewModelScope.launch { dataStoreManager.saveStores(uiState.value.stores) }
     }
 
     fun searchStores(query: String, nearMe: Boolean) {
@@ -650,7 +740,10 @@ data class PantryUiState(
     val storeSearchError: String? = null,
     val pantryId: Int? = null,
     val pantryCreatorId: String? = null,
-    val kcalThreshold: Int? = null
+    val kcalThreshold: Int? = null,
+    val isAddingProduct: Boolean = false,
+    val addProductSuccess: Boolean = false,
+    val addProductError: String? = null
 ) {
     fun updateLocationSortedSearchResults(results: List<StoreSearchResult>): PantryUiState {
         val sorted = if (userLocation != null) {
