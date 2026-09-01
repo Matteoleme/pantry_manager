@@ -7,6 +7,7 @@
 
 ## Support  
 Only single device and login per user is supported, doing login in one device invalidates other device's previous login.  
+See /docs for the endpoint usage information  
 
 ## Run
 ```bash
@@ -23,84 +24,125 @@ The API will be available at:
 
 - `GET /health`  
 get health status  
+``` return {"status":"ok"} ```  
+<!--test ok-->
 
 - `PUT /users/me/device`  
-update device token FCM for notifications 
+update device token FCM for notifications  
+``` {} ```  
 
 - `POST /test/fcm`  
 test status of notification engine with FCM (send notification to yourself)  
+``` {} ```  
 
-- `POST /auth/register`
+- `POST /auth/register`  
+``` {} ```  
+<!-- -->
+
 - `POST /auth/login`  
+``` return { "access_token": "...", "refresh_token": "...", "token_type": "bearer"} ```  
+<!-- test ok -->
+
 - `POST /auth/logout`  
+``` {} ```  
+
 register / login / logout user  
+
 
 - `POST /auth/refresh`  
 refresh access token  
+``` {} ```  
 
 - `POST /auth/change_password`  
 change password of user (must provide the old password besides being logged in)  
+``` return {"status": "ok", "message": "Password changed successfully"} ```
+``` return {"detail": "Invalid username or password"} ```  
+<!-- test ok -->
 
 - `GET /me`  
 get user informations  
+``` return {"id": 1, "name": "gianlu", "username": "gianlu", "local": true} ```  
+<!-- test ok --> 
 
 - `GET /pantry`  
-retrieve pantry informations (no associated list of products)
+retrieve pantry informations (no associated list of products)  
+``` return {"id": ..., "creator": "...", "kcal_threshold": ...} ```  
+<!-- test ok --> 
+
+- `POST /update-threshold`  
+update the kcal-threshold for your pantry  
+``` return {"id": ..., "creator": "...", "kcal_threshold": ...} ```  
+<!-- test ok --> 
 
 - `POST /pantry-share-requests`  
 create request to join a pantry
 <!--EX. { "username": "alice11" } -->  
+``` {} ```  
 
 - `GET /retrieve-pantry-share-requests`  
 list all pending join requests sent to your pantry  
+``` {} ```  
+<!-- test  -->
 
 - `POST /pantry/leave`  
 get back to your own local pantry (exit shared pantry)  
+``` return {"detail": "You are already in your own pantry"} (400: bad request)```  
+``` return {} ``` 
+<!-- test  --> 
 
 - `POST /pantry-share-requests/{request_id}/approve`
 - `POST /pantry-share-requests/{request_id}/reject`  
 approve / reject pantry join request  
+``` {} ```  
 
 - `GET /categories`  
 list all categories in your current pantry  
+``` return [{"name": "..."},{"name": "..."} ```  
+<!-- test ok -->
 
 - `POST /add_category`  
 create new category
 <!--EX. { "name": "breakfast" } -->  
+``` {} ```  
 
 - `DELETE /delete_category/{category_name}`  
-delete category by name
+delete category by name  
+``` return {"status": "ok", "message": "category deleted successfully"} ```  
+<!-- test ok -->
 
 - `POST /add_product`  
 create new product  
+``` {} ```  
 
 - `DELETE /delete_product/{product_id}`  
 delete product by id  
+``` {} ```  
 
 - `POST /products/{product_id}/quantity`  
 update product quantity  
 <!-- EX. {"quantity": -5} -->  
+``` {} ```  
 
 - `GET /products/{product_id}`  
 get product by id  
+``` {} ```  
 
 - `GET /all_products`  
 list all products in your current pantry  
+``` {} ```  
 
 - `POST /eat`  
 eat a list of products and their quantities   
-<!-- EX. {product_id, quantity},{product_id, quantity}... -->  
+<!-- EX. {product_id, quantity},{product_id, quantity}... -->
+``` {} ```  
 
 - `GET stats/day`  
 retrieve the total kcal reached so far during the day (divided by category) and the threshold (if set)  
+``` {} ```  
 
 - `GET stats/month`  
 retrieve the total kcal reached every day in the last 30 days and the threshold (if set)  
-
-- `POST /update-threshold`  
-update the kcal-threshold for your pantry 
-
-
+``` {} ```  
 
 - TODO
 <!-- GET get pantry  !! (attach all products in list) -->
@@ -133,7 +175,7 @@ update the kcal-threshold for your pantry
 ?? add creator_id to event and tailor statistics for each user
 <!-- fix post/eat -->
 fix delete category (gives conflicts when not)
-fix retrieve share requests
+<!-- fix retrieve share requests -->
 <!-- fix username/name (':' not allowed) -->
 <!-- modify jwt expiration to auto refresh allowing logout with stateless jwt -->
 <!-- add standard categories by default on pantry creation (dairy, fruit, vegetables, meat, drinks, other) -->
