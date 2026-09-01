@@ -88,7 +88,7 @@ DEFAULT_CATEGORIES = [
 ########## USER registration (and new local pantry creation) ##########
 @app.post(
     "/auth/register",
-    response_model=UserResponse,
+    #response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def register(payload: UserCreate, db: Session = Depends(get_db)):
@@ -102,6 +102,13 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=409,
             detail="Username already exists",
+        )
+
+    #check format username/name
+    if payload.name.find(':') or payload.username.find(':'):
+        raise HTTPException(
+            status_code=400,
+            detail="Username and Name cannot contain ':'",
         )
 
     ### generate token_share
@@ -145,7 +152,9 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    return user
+    return {
+        "detail": "User created successfully",
+    }
 
 ########## USER login ##########
 @app.post(
@@ -564,7 +573,8 @@ def get_pending_share_requests(
             User.id == PantryShareRequest.requesting_user_id,
         )
         .filter(
-            PantryShareRequest.pantry_token_share == pantry.token_share,
+            #PantryShareRequest.pantry_token_share == pantry.token_share,
+            PantryShareRequest.pantry_id == pantry.id,
             PantryShareRequest.status == "pending",
         )
         .order_by(
@@ -579,7 +589,7 @@ def get_pending_share_requests(
         result.append(
             PantryShareRequestResponseInfo(
                 id=request.id,
-                requester_id=requester.id,
+                #requester_id=requester.id,
                 requester_username=requester.username,
                 requester_name=requester.name,
                 status=request.status,
@@ -675,6 +685,12 @@ def reject_pantry_request(request_id: int, current_user: User = Depends(get_curr
             status_code=404,
             detail="Share request not found",
         )
+
+    if request.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Request is no longer pending",
+        )     
 
     pantry = db.get(
         Pantry,
@@ -777,27 +793,49 @@ def create_category(
             detail="No pantry associated with this user",
         )
 
-    category = Category(
-        name=payload.name,
-        token_share=current_user.token_share,
-    )
-
-    db.add(category)
-    db.commit()
-    db.refresh(category)
-
-    '''
-    categories = (
+    #check if category already exists/inactive
+    category_present = (
         db.query(Category)
         .filter(
-            Category.token_share == current_user.token_share
+            Category.name == payload.name,
+            Category.token_share == current_user.token_share,
         )
-        .order_by(Category.name)
-        .all()
+        .first()
     )
-    '''
-    
-    return category
+    if category_present == None:
+
+        category = Category(
+            name=payload.name,
+            token_share=current_user.token_share,
+        )
+
+        db.add(category)
+        db.commit()
+        db.refresh(category)
+
+        '''
+        categories = (
+            db.query(Category)
+            .filter(
+                Category.token_share == current_user.token_share
+            )
+            .order_by(Category.name)
+            .all()
+        )
+        '''
+        
+        return category
+    else:
+        if category_present.active == True:
+            raise HTTPException(
+                status_code=409,
+                detail="Category already exists",
+            )
+        category_present.active = True
+        db.commit()
+        db.refresh(category_present)
+        return category_present
+        
 
 ########## CATEGORY delete by name ##########
 @app.delete(
@@ -870,29 +908,32 @@ def create_product(
     db: Session = Depends(get_db),
 ):
 
+    # check quantity > 0
     if payload.quantity <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(f"Incorrect quantity, select a positive quantity"),
         )
 
-    if payload.EAN == None or payload.EAN == "":         
-        category = (
-            db.query(Category)
-            .filter(
-                Category.name == payload.category,
-                Category.token_share == current_user.token_share,
-                Category.active == True,
-            )
-            .first()
+    # check category exist and active on db
+    category = (
+        db.query(Category)
+        .filter(
+            Category.name == payload.category,
+            Category.token_share == current_user.token_share,
+            Category.active == True,
         )
-        
-        if category is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Category not found",
-            )
-        
+        .first()
+    )
+    if category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found",
+        )
+
+    ### check EAN
+    if payload.EAN == None or payload.EAN == "":         
+        #NULL EAN Behavior
         product = Product(
             name=payload.name,
             EAN=payload.EAN,
@@ -909,6 +950,7 @@ def create_product(
         return product
 
     else:
+        # EAN NOT NULL
         #check if i have a product with same EAN
         product_with_EAN_present = (
             db.query(Product)
@@ -924,7 +966,7 @@ def create_product(
             if product_with_EAN_present.kcal != payload.kcal or product_with_EAN_present.name != payload.name:
                 raise HTTPException(
                 status_code=409,
-                detail="A product with same EAN is present in your pantry\nPRODUCTS MISMATCH",
+                detail="(PRODUCTS with same EAN MISMATCH)",
             )
             new_quantity = (
                 product_with_EAN_present.quantity + payload.quantity
@@ -1157,8 +1199,8 @@ def create_event(
             )
         if product.quantity < requested_quantity:
             raise HTTPException(
-                status_code=404,
-                detail=f"Insufficient quantity for product {product.name}",
+                status_code=400,
+                detail=f"Insufficient quantity for product: {product.name}",
             )
 
         #calculate kcal for product
@@ -1185,13 +1227,10 @@ def create_event(
         )
         db.add(event)
 
-    
     #commit all events
     db.commit()
     #db.refresh(pantry)
 
-
-   
     today = datetime.now(timezone.utc)
     #calculate kcal for today
     start = datetime.combine(
@@ -1215,22 +1254,11 @@ def create_event(
         )
         .scalar()
     )
-    #return result
-    
-    '''actual_kcal = (
-        db.query(func.coalesce(func.sum(Event.kcal),0))
-        .filter(
-            Event.token_share == current_user.token_share,
-            Event.event_date.date() == today,
-        )
-        .scalar()
-    )
-    '''
-    #TODO decomment
-    '''
+
     if actual_kcal >= pantry.kcal_threshold and pantry.kcal_threshold != 0:
-        
-        
+
+        #TODO decomment    
+        '''   
         pantry_users = (
             db.query(User)
             .filter(
@@ -1248,12 +1276,19 @@ def create_event(
                 kcal_threshold=pantry.kcal_threshold,
             )
         except Exception as exc:
-            print(f"failed to send FCM notification: {exc}")        
+            print(f"failed to send FCM notification: {exc}")   
+        '''
+        return {
+            "status":"ok",
+            "message": "event created successfully",
+            "kcal_threshold": f"exceeded: {actual_kcal}"
+        }     
             
-    '''
+    
     return {
         "status":"ok",
-        "message": "event created successfully"
+        "message": "event created successfully",
+        "kcal_threshold": "not_exceeded"
     }
 
 ########## STATISTICS on kcal ##########

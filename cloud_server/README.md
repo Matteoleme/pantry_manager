@@ -36,22 +36,23 @@ test status of notification engine with FCM (send notification to yourself)
 ``` {} ```  
 
 - `POST /auth/register`  
-``` {} ```  
-<!-- -->
+``` return {"detail": "Username already exists"} (409)```  
+``` return {"detail": "User created successfully"} ```  
+``` return "detail": "Username and Name cannot contain ':'" ```  
+<!-- test ok -->
 
 - `POST /auth/login`  
 ``` return { "access_token": "...", "refresh_token": "...", "token_type": "bearer"} ```  
 <!-- test ok -->
-
 - `POST /auth/logout`  
-``` {} ```  
-
+``` return {"status": "ok", "message": "Logged out successfully"} ```  
+<!-- test ok -->
 register / login / logout user  
-
 
 - `POST /auth/refresh`  
 refresh access token  
-``` {} ```  
+``` return {"access_token": "...", "token_type": "bearer"} ```  
+<!-- test ok -->
 
 - `POST /auth/change_password`  
 change password of user (must provide the old password besides being logged in)  
@@ -77,23 +78,33 @@ update the kcal-threshold for your pantry
 - `POST /pantry-share-requests`  
 create request to join a pantry
 <!--EX. { "username": "alice11" } -->  
-``` {} ```  
+``` return {"status": "ok", "message": "request sent successfully"} ```  
+``` return {"detail": "A pending request already exists"}  ```  
+``` return {"detail": "You cannot request access to your own pantry"}  ```  
+<!-- test ok (NO NOTIFICATION) -->
 
 - `GET /retrieve-pantry-share-requests`  
 list all pending join requests sent to your pantry  
-``` {} ```  
-<!-- test  -->
+``` return {"detail"="You are not on your local pantry"} ```  
+``` return {"requests": [{"id": ..., "requester_username": "...", "requester_name": "...", "status": "pending", "created_at": "..."}]} ```  
+<!-- test ok -->
 
 - `POST /pantry/leave`  
 get back to your own local pantry (exit shared pantry)  
 ``` return {"detail": "You are already in your own pantry"} (400: bad request)```  
-``` return {} ``` 
-<!-- test  --> 
+``` return {"status": "ok", "message": "Returned to your own pantry", "local": true} ```
+<!-- test ok --> 
 
-- `POST /pantry-share-requests/{request_id}/approve`
+- `POST /pantry-share-requests/{request_id}/approve`  
+``` return {"status": "ok", "message": "request accepted successfully"} ```  
+``` return {"detail": "Request is no longer pending"} ```  
+<!-- test ok --> 
+
 - `POST /pantry-share-requests/{request_id}/reject`  
+``` return {"status": "ok", "message": "request rejected successfully"} ```
+``` return {"detail": "Request is no longer pending"} ```  
+<!-- test ok --> 
 approve / reject pantry join request  
-``` {} ```  
 
 - `GET /categories`  
 list all categories in your current pantry  
@@ -103,46 +114,64 @@ list all categories in your current pantry
 - `POST /add_category`  
 create new category
 <!--EX. { "name": "breakfast" } -->  
-``` {} ```  
+``` return {"name": "..."} ```  
+``` return {"detail": "Category already exists"} (409) ```  
+<!-- test ok -->
 
 - `DELETE /delete_category/{category_name}`  
 delete category by name  
 ``` return {"status": "ok", "message": "category deleted successfully"} ```  
-<!-- test ok -->
+``` return {"detail": "Cannot delete category because products use it"} ```  
+ <!-- test ok -->
 
 - `POST /add_product`  
 create new product  
-``` {} ```  
+``` return {"id": ..., "name": "...", "EAN": "...", "unit": "...", "quantity": "...", "category": "...", "kcal": ...} ```  
+``` return {"detail": "Category not found"} ```  
+``` return {"detail": "(PRODUCTS with same EAN MISMATCH)"} (409) ```  
+<!-- test ok -->
 
 - `DELETE /delete_product/{product_id}`  
 delete product by id  
-``` {} ```  
+``` return {"status": "ok","message": "product deleted successfully"} ```  
+<!-- test ok -->
 
 - `POST /products/{product_id}/quantity`  
 update product quantity  
 <!-- EX. {"quantity": -5} -->  
-``` {} ```  
+``` return {"id": ..., "name": "...", "EAN": "...", "unit": "...", "quantity": "...", "category": "...", "kcal": ...} ``` 
+``` return {"detail": "Insufficient quantity. Current quantity: ..., requested change: ..."} (400) ```  
+<!-- test ok -->
 
 - `GET /products/{product_id}`  
 get product by id  
-``` {} ```  
+``` return {"id": ..., "name": "...", "EAN": "...", "unit": "...", "quantity": "...", "category": "...", "kcal": ...} ```  
+``` return {"detail": "Product not found"} ```  
+<!-- test ok -->
 
 - `GET /all_products`  
 list all products in your current pantry  
-``` {} ```  
+``` return [{"id": ..., "name": "...", "EAN": "...", "unit": "...", "quantity": "...", "category": "...", "kcal": ...}] ```  
+<!-- test ok -->
 
 - `POST /eat`  
 eat a list of products and their quantities   
 <!-- EX. {product_id, quantity},{product_id, quantity}... -->
-``` {} ```  
+``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "not_exceeded"} ```  
+``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "exceeded: ..."} ```  
+``` return {"detail": "Insufficient quantity for product: ..."} (400) ``` 
+<!-- test ok (NO NOTIFICATION) -->
 
 - `GET stats/day`  
 retrieve the total kcal reached so far during the day (divided by category) and the threshold (if set)  
-``` {} ```  
+``` return {"date": "YYYY-MM-DD", "total_kcal": "...", "threshold": ..., "categories": [{"category": "...", "kcal": "...", "percentage": "..."}]} ```  
+<!-- test ok -->
 
 - `GET stats/month`  
 retrieve the total kcal reached every day in the last 30 days and the threshold (if set)  
-``` {} ```  
+``` return {"start_date": "...", "end_date": "...", "threshold": ..., "days": [{}, ..., { "date": "", "kcal": "..."}]} ```  
+<!-- test ok -->
+
 
 - TODO
 <!-- GET get pantry  !! (attach all products in list) -->
@@ -172,9 +201,9 @@ retrieve the total kcal reached every day in the last 30 days and the threshold 
 <!-- modify add_product and add_category to return inserted item instead of pantry -->
 <!-- modify get/pantry to retrieve only pantry informations (id, creator:username, kcal_threshold) -->
 <!-- modify product_with_EAN in add_product check null-ean implementation -->
-?? add creator_id to event and tailor statistics for each user
+add creator_id to event and kcal_threshold to users and tailor statistics for each user
 <!-- fix post/eat -->
-fix delete category (gives conflicts when not)
+<!-- fix delete category (gives conflicts when not) -->
 <!-- fix retrieve share requests -->
 <!-- fix username/name (':' not allowed) -->
 <!-- modify jwt expiration to auto refresh allowing logout with stateless jwt -->
