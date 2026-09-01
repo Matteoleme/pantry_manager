@@ -15,6 +15,7 @@ import com.mobileapp.xpensa.navigation.PantryDestination
 import com.mobileapp.xpensa.scanner.BarcodeScannerScreen
 import com.mobileapp.xpensa.ui.components.PantryScaffold
 import com.mobileapp.xpensa.ui.consumption.MealConsumptionScreen
+import com.mobileapp.xpensa.ui.categories.ManageCategoriesScreen
 import com.mobileapp.xpensa.ui.home.HomeScreen
 import com.mobileapp.xpensa.ui.products.EditProductScreen
 import com.mobileapp.xpensa.ui.products.NewProductScreen
@@ -204,6 +205,16 @@ fun PantryApp() {
                                 backStack.removeAt(backStack.size - 1)
                             }
                             backStack.add(PantryDestination.Login)
+                        }
+                    )
+                }
+                PantryDestination.ManageCategories -> NavEntry(key) {
+                    ManageCategoriesScreen(
+                        viewModel = pantryViewModel,
+                        onNavigateBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
                         }
                     )
                 }

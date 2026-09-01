@@ -352,6 +352,45 @@ class PantryViewModel(
         }
     }
 
+    fun deleteCategory(categoryName: String) {
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.deleteCategory(categoryName)
+                if (response.isSuccessful) {
+                    _uiState.update { state ->
+                        val newCategories = state.allCategories.filter { it != categoryName }
+                        viewModelScope.launch { dataStoreManager.saveCategories(newCategories) }
+                        state.copy(allCategories = newCategories)
+                    }
+                } else {
+                    android.util.Log.e("PantryViewModel", "Errore eliminazione categoria: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Eccezione eliminazione categoria", e)
+            }
+        }
+    }
+
+    fun deleteProduct(productId: String) {
+        viewModelScope.launch {
+            try {
+                val numericId = productId.toIntOrNull() ?: return@launch
+                val response = pantryApi.deleteProduct(numericId)
+                if (response.isSuccessful) {
+                    _uiState.update { state ->
+                        val newProducts = state.products.filter { it.id != productId }
+                        viewModelScope.launch { dataStoreManager.saveProducts(newProducts) }
+                        state.copy(products = newProducts)
+                    }
+                } else {
+                    android.util.Log.e("PantryViewModel", "Errore eliminazione prodotto: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Eccezione eliminazione prodotto", e)
+            }
+        }
+    }
+
     fun incrementQuantity(productId: String) {
         _uiState.update { state ->
             val newProducts = state.products.map { product ->

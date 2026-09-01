@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -87,6 +88,10 @@ fun HomeScreen(
             onEdit = { 
                 viewModel.selectProduct(null)
                 onNavigateToEdit(product.id)
+            },
+            onDelete = {
+                viewModel.deleteProduct(product.id)
+                viewModel.selectProduct(null)
             }
         )
     }
@@ -248,9 +253,12 @@ fun PlaceholderRow() {
 fun ProductDetailDialog(
     product: Product,
     onDismiss: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = if (showDeleteConfirm) ({}) else onDismiss) {
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -259,51 +267,101 @@ fun ProductDetailDialog(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Dettagli Prodotto",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                DetailItem(label = "Nome", value = product.name)
-                DetailItem(
-                    label = "Quantità", 
-                    value = "${formatQuantity(product.quantity, product.unit)} ${product.unit.symbol}"
-                )
-                DetailItem(label = "Categoria", value = product.category)
-                val kcalLabel = when(product.unit) {
-                    MeasurementUnit.KG -> "Kcal/100g"
-                    MeasurementUnit.L -> "Kcal/100ml"
-                    MeasurementUnit.UNIT -> "Kcal/unità"
-                }
-                DetailItem(label = kcalLabel, value = product.kcal?.toString() ?: "N/A")
-                DetailItem(label = "EAN", value = product.ean ?: "N/A")
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+            if (showDeleteConfirm) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = onEdit,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                    Text(
+                        text = "Elimina Prodotto",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "Sei sicuro di voler eliminare definitivamente '${product.name}' dalla tua dispensa?",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Modifica")
+                        OutlinedButton(
+                            onClick = { showDeleteConfirm = false },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Annulla")
+                        }
+                        Button(
+                            onClick = onDelete,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Elimina")
+                        }
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Dettagli Prodotto",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Elimina Prodotto",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
 
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                    DetailItem(label = "Nome", value = product.name)
+                    DetailItem(
+                        label = "Quantità", 
+                        value = "${formatQuantity(product.quantity, product.unit)} ${product.unit.symbol}"
+                    )
+                    DetailItem(label = "Categoria", value = product.category)
+                    val kcalLabel = when(product.unit) {
+                        MeasurementUnit.KG -> "Kcal/100g"
+                        MeasurementUnit.L -> "Kcal/100ml"
+                        MeasurementUnit.UNIT -> "Kcal/unità"
+                    }
+                    DetailItem(label = kcalLabel, value = product.kcal?.toString() ?: "N/A")
+                    DetailItem(label = "EAN", value = product.ean ?: "N/A")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Chiudi")
+                        OutlinedButton(
+                            onClick = onEdit,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Modifica")
+                        }
+
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Chiudi")
+                        }
                     }
                 }
             }

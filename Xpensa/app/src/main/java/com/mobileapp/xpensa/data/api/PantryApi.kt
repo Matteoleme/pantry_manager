@@ -2,8 +2,10 @@ package com.mobileapp.xpensa.data.api
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 interface PantryApi {
     @GET("pantry")
@@ -23,6 +25,12 @@ interface PantryApi {
 
     @GET("categories")
     suspend fun getCategories(): Response<List<CategoryResponse>>
+
+    @DELETE("delete_category/{category_name}")
+    suspend fun deleteCategory(@Path("category_name") categoryName: String): Response<Unit>
+
+    @DELETE("delete_product/{product_id}")
+    suspend fun deleteProduct(@Path("product_id") productId: Int): Response<Unit>
 
     companion object {
         const val BASE_URL = NetworkConfig.BACKEND_BASE_URL
