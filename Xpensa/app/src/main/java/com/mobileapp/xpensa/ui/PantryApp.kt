@@ -34,6 +34,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.mobileapp.xpensa.data.AuthRepository
 import com.mobileapp.xpensa.data.api.AuthApi
 import com.mobileapp.xpensa.data.api.AuthInterceptor
+import com.mobileapp.xpensa.data.api.TokenAuthenticator
 import com.mobileapp.xpensa.data.api.PantryApi
 import com.mobileapp.xpensa.data.local.DataStoreManager
 import com.mobileapp.xpensa.ui.auth.AuthViewModel
@@ -55,6 +56,27 @@ fun PantryApp() {
     val dataStoreManager = remember { DataStoreManager(context.applicationContext) }
     val json = remember { Json { ignoreUnknownKeys = true } }
 
+    // Client di base per il refresh (senza authenticator per evitare loop)
+    val baseClient = remember {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+    }
+
+    // Repository dedicato al refresh
+    val authRepositoryForRefresh = remember {
+        val api = Retrofit.Builder()
+            .baseUrl(AuthApi.BASE_URL)
+            .client(baseClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(AuthApi::class.java)
+        AuthRepository(api, dataStoreManager)
+    }
+
     val sharedClient = remember {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -62,6 +84,7 @@ fun PantryApp() {
         OkHttpClient.Builder()
             .addInterceptor(logging)
             .addInterceptor(AuthInterceptor(dataStoreManager))
+            .authenticator(TokenAuthenticator(authRepositoryForRefresh, dataStoreManager))
             .build()
     }
 

@@ -3,6 +3,7 @@ package com.mobileapp.xpensa.data
 import com.mobileapp.xpensa.data.api.AuthApi
 import com.mobileapp.xpensa.data.api.ChangePasswordRequest
 import com.mobileapp.xpensa.data.api.LoginRequest
+import com.mobileapp.xpensa.data.api.LoginResponse
 import com.mobileapp.xpensa.data.api.RegisterRequest
 import com.mobileapp.xpensa.data.api.UserResponse
 import com.mobileapp.xpensa.data.local.DataStoreManager
@@ -34,7 +35,7 @@ class AuthRepository(
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
-                    dataStoreManager.saveAuthToken(body.accessToken, body.tokenType)
+                    dataStoreManager.saveAuthToken(body.accessToken, body.refreshToken, body.tokenType)
                     Result.success(Unit)
                 } else {
                     Result.failure(Exception("Empty response body"))
@@ -70,6 +71,25 @@ class AuthRepository(
             val response = api.changePassword(request)
             if (response.isSuccessful) {
                 Result.success(Unit)
+            } else {
+                Result.failure(Exception(parseErrorMessage(response)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun refreshToken(refreshToken: String): Result<LoginResponse> {
+        return try {
+            val response = api.refreshToken(refreshToken)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    dataStoreManager.saveAuthToken(body.accessToken, body.refreshToken, body.tokenType)
+                    Result.success(body)
+                } else {
+                    Result.failure(Exception("Empty response body"))
+                }
             } else {
                 Result.failure(Exception(parseErrorMessage(response)))
             }

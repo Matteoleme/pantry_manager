@@ -28,6 +28,7 @@ class DataStoreManager(private val context: Context) {
         val STORES_KEY = stringPreferencesKey("stores_json")
         val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token")
         val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
+        val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         val TOKEN_TYPE_KEY = stringPreferencesKey("token_type")
 
         val MOCK_STORES = listOf(
@@ -90,6 +91,10 @@ class DataStoreManager(private val context: Context) {
         preferences[AUTH_TOKEN_KEY]
     }
 
+    val refreshTokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[REFRESH_TOKEN_KEY]
+    }
+
     val tokenTypeFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[TOKEN_TYPE_KEY]
     }
@@ -144,9 +149,10 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    suspend fun saveAuthToken(token: String, type: String) {
+    suspend fun saveAuthToken(accessToken: String, refreshToken: String, type: String) {
         context.dataStore.edit { preferences ->
-            preferences[AUTH_TOKEN_KEY] = token
+            preferences[AUTH_TOKEN_KEY] = accessToken
+            preferences[REFRESH_TOKEN_KEY] = refreshToken
             preferences[TOKEN_TYPE_KEY] = type
         }
     }
@@ -154,6 +160,7 @@ class DataStoreManager(private val context: Context) {
     suspend fun clearAuthToken() {
         context.dataStore.edit { preferences ->
             preferences.remove(AUTH_TOKEN_KEY)
+            preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(TOKEN_TYPE_KEY)
         }
     }
@@ -161,6 +168,7 @@ class DataStoreManager(private val context: Context) {
     suspend fun clearTokens() {
         context.dataStore.edit { preferences ->
             preferences.remove(AUTH_TOKEN_KEY)
+            preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(TOKEN_TYPE_KEY)
             // Possiamo anche pulire prodotti e categorie se vogliamo una logout pulita
             preferences.remove(PRODUCTS_KEY)

@@ -12,6 +12,9 @@ interface AuthApi {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 
+    @GET("auth/refresh")
+    suspend fun refreshToken(@retrofit2.http.Query("refresh_token") refreshToken: String): Response<LoginResponse>
+
     @POST("auth/logout")
     suspend fun logout(): Response<Unit>
 
