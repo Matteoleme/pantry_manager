@@ -17,6 +17,13 @@ class User(Base):
     fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
     local: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     session_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    kcal_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    login_attempt_n: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    login_date_last_attempt: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     pantries: Mapped[list["Pantry"]] = relationship(
         back_populates="creator_user",
@@ -148,6 +155,11 @@ class Event(Base):
     product_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("products.id"),
+        nullable=False,
+    )
+    creator_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id"),
         nullable=False,
     )
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

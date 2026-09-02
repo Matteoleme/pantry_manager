@@ -29,6 +29,7 @@ from .schemas import (
     PantryShareRequestListResponse,
     UserCreate,
     UserResponse,
+    UserUsername,
     DeviceTokenUpdate,
     CategoryCreate,
     CategoryResponse,
@@ -44,6 +45,7 @@ from .schemas import (
 from .notifications import (
     send_pantry_share_notification,
     send_kcal_t_reached_notification,
+    send_kcal_t_reached_notification_single,
 )
 
 #### security and user authentication
@@ -62,6 +64,9 @@ from .config import (
     JWT_SECRET_KEY,
     JWT_EXPIRE_REFRESH_TOKEN_DAYS,
 )
+
+LOCKOUT_ATTEMPTS = 5
+LOCKOUT_DURATION = timedelta(minutes=15)
 
 #create DB
 Base.metadata.create_all(bind=engine)
@@ -105,7 +110,7 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         )
 
     #check format username/name
-    if payload.name.find(':') or payload.username.find(':'):
+    if ":" in payload.name or ":" in payload.username:
         raise HTTPException(
             status_code=400,
             detail="Username and Name cannot contain ':'",
@@ -177,14 +182,57 @@ def login(
             detail="Invalid username or password",
         )
 
+    now = datetime.now(timezone.utc)
+    #check if account locked
+    if (
+        user.login_attempt_n >= LOCKOUT_ATTEMPTS
+        and user.login_date_last_attempt is not None
+    ):
+        lockout_until = user.login_date_last_attempt + LOCKOUT_DURATION
+        if now < lockout_until:
+            print("already locked")
+            remaining_seconds = int((lockout_until - now).total_seconds())
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "message": "Too many failed login attempts",
+                    "retry_after_minutes": f"{(remaining_seconds/60):.2f}",
+                },
+                headers={"Retry-after": f"{(remaining_seconds/60):.2f}"},
+            )
+        #lockout expired
+        user.login_attempt_n = 0
+        user.login_date_last_attempt = None
+
+    # check password
     if not verify_password(
         payload.password,
         user.password,
     ):
+        user.login_attempt_n += 1
+        user.login_date_last_attempt = now
+
+        db.commit()
+
+        if user.login_attempt_n >= LOCKOUT_ATTEMPTS:
+            print("just locked")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "message": "Too many failed login attempts",
+                    "retry_after_minutes": "30",
+                },
+                headers={"Retry-after": "30"},
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
+
+    #login successfull (reset counter)
+    user.login_attempt_n = 0
+    user.login_date_last_attempt = None
+    db.commit()
 
     access_token = create_access_token(user)
     refresh_token = create_refresh_token(user)
@@ -383,6 +431,8 @@ def get_my_pantry(
 ):
     pantry = get_current_pantry(current_user, db)
     ### to retrieve all products: pantry.products+
+    
+    #retrieve username of pantry creator
     if current_user.local:
         creator_username = current_user.username
     else:
@@ -394,10 +444,15 @@ def get_my_pantry(
         
         creator_username = creator_user.username
 
+    all_users = (
+        db.query(User.username)
+        .filter(User.token_share == current_user.token_share)
+    )
     my_pantry = PantryResponse(
         id = pantry.id,
         creator = creator_username,
-        kcal_threshold = pantry.kcal_threshold,
+        kcal_threshold = current_user.kcal_threshold,
+        users = all_users,
     )
     return my_pantry
 
@@ -415,10 +470,11 @@ def modify_pantry_kcal_threshold(payload: PantryThresholdModify, current_user: U
             status_code=404,
             detail="Negative threshold",
         )
-    pantry.kcal_threshold = payload.kcal_threshold
+    current_user.kcal_threshold = payload.kcal_threshold
     db.commit()
-    db.refresh(pantry)
+    db.refresh(current_user)
 
+    #retrieve username of pantry creator
     if current_user.local:
         creator_username = current_user.username
     else:
@@ -429,10 +485,17 @@ def modify_pantry_kcal_threshold(payload: PantryThresholdModify, current_user: U
         )
     
         creator_username = creator_user.username
+
+    all_users = (
+        db.query(User.username)
+        .filter(User.token_share == current_user.token_share)
+    )
+
     my_pantry = PantryResponse(
         id = pantry.id,
         creator = creator_username,
-        kcal_threshold = pantry.kcal_threshold,
+        kcal_threshold = current_user.kcal_threshold,
+        users = all_users,
     )
 
     return my_pantry
@@ -509,8 +572,6 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
     db.refresh(request)
 
     ######################## fire notification to creator ############
-    '''
-    TODO decomment
     if owner.fcm_token:
         try:
             send_pantry_share_notification(
@@ -520,7 +581,6 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
             )
         except Exception as exc:
             print(f"failed to send FCM notification: {exc}")
-    '''
 
     #my_pantry = get_current_pantry(current_user, db)
 
@@ -529,8 +589,6 @@ def request_pantry_access(payload: PantryShareRequestCreate, current_user: User 
         "message": "request sent successfully"
     }
 
-
-###### TODO check implementation with fields not in model (ex. requesting name and username)
 ########## PANTRY retrieve PENDING share requests ##########
 @app.get(
     "/retrieve-pantry-share-requests",
@@ -752,6 +810,51 @@ def leave_shared_pantry(
         "status": "ok",
         "message": "Returned to your own pantry",
         "local": current_user.local,
+    }
+
+########## PANTRY Leave shared pantry ##########
+@app.post("/pantry/remove/{username}")
+def remove_user_from_pantry(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # User isnot in their own pantry.
+    if not current_user.local:
+        raise HTTPException(
+            status_code=400,
+            detail="You are not in your own pantry",
+        )
+    if current_user.username == username:
+        raise HTTPException(
+            status_code=400,
+            detail="This is your own pantry",
+        )
+    # Restore the user's own pantry.
+    user = (
+        db.query(User)
+        .filter(
+            User.username == username,
+            User.token_share == current_user.token_share,
+        )
+        .first()
+    )
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    user.token_share = user.own_token_share
+    user.local = True
+
+    db.commit()
+    #db.refresh(current_user)
+
+    # = get_current_pantry(current_user, db)
+    return {
+        "status": "ok",
+        "message": f"{username} removed successfully",
     }
 
 ########## CATEGORIES retrieve ##########
@@ -1219,6 +1322,7 @@ def create_event(
         event = Event(
             token_share=current_user.token_share,
             product_id=product.id,
+            creator_id=current_user.id,
             event_date=event_date,
             kcal=event_kcal,
             quantity=requested_quantity,
@@ -1248,17 +1352,28 @@ def create_event(
     actual_kcal = (
         db.query(func.coalesce(func.sum(Event.kcal), 0))
         .filter(
-            Event.token_share == current_user.token_share,
+            #Event.token_share == current_user.token_share,
             Event.event_date >= start,
             Event.event_date <= end,
+            Event.creator_id == current_user.id,
         )
         .scalar()
     )
 
-    if actual_kcal >= pantry.kcal_threshold and pantry.kcal_threshold != 0:
+    if actual_kcal >= current_user.kcal_threshold and current_user.kcal_threshold != 0:
 
-        #TODO decomment    
-        '''   
+        if current_user.fcm_token:
+            try:
+                send_kcal_t_reached_notification_single(
+                    current_user.fcm_token, 
+                    actual_kcal, 
+                    current_user.kcal_threshold,
+                )
+            except Exception as exc:
+                print(f"failed to send FCM notification: {exc}")
+
+        ''' 
+        ###### SUPPORT PANTRY BASED kcal_threshold  
         pantry_users = (
             db.query(User)
             .filter(
@@ -1273,7 +1388,7 @@ def create_event(
             send_kcal_t_reached_notification(
                 fcm_tokens=pantry_user.fcm_token,
                 actual_kcal=actual_kcal,
-                kcal_threshold=pantry.kcal_threshold,
+                kcal_threshold=current_user.kcal_threshold,
             )
         except Exception as exc:
             print(f"failed to send FCM notification: {exc}")   
@@ -1281,7 +1396,7 @@ def create_event(
         return {
             "status":"ok",
             "message": "event created successfully",
-            "kcal_threshold": f"exceeded: {actual_kcal}"
+            "kcal_threshold": f"exceeded: {actual_kcal} / {current_user.kcal_threshold}"
         }     
             
     
@@ -1333,7 +1448,8 @@ def get_day_stats(
             )
         )
         .filter(
-            Event.token_share == pantry.token_share,
+            #Event.token_share == pantry.token_share,
+            Event.creator_id == current_user.id,
             Event.event_date >= start,
             Event.event_date < end,
         )
@@ -1352,7 +1468,8 @@ def get_day_stats(
             func.sum(Event.kcal).label("kcal"),
         )
         .filter(
-            Event.token_share == pantry.token_share,
+            #Event.token_share == pantry.token_share,
+            Event.creator_id == current_user.id,
             Event.event_date >= start,
             Event.event_date < end,
         )
@@ -1388,7 +1505,7 @@ def get_day_stats(
     return DayStatsResponse(
         date=today,
         total_kcal=total_kcal,
-        threshold=pantry.kcal_threshold,
+        threshold=current_user.kcal_threshold,
         categories=categories,
     )
 
@@ -1436,7 +1553,8 @@ def get_month_stats(
             func.sum(Event.kcal).label("kcal"),
         )
         .filter(
-            Event.token_share == pantry.token_share,
+            #Event.token_share == pantry.token_share,
+            Event.creator_id == current_user.id,
             Event.event_date >= start,
             Event.event_date < end,
         )
@@ -1480,7 +1598,7 @@ def get_month_stats(
     return MonthStatsResponse(
         start_date=first_day,
         end_date=today,
-        threshold=pantry.kcal_threshold,
+        threshold=current_user.kcal_threshold,
         days=days,
     )
 

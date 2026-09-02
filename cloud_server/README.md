@@ -43,11 +43,13 @@ test status of notification engine with FCM (send notification to yourself)
 
 - `POST /auth/login`  
 ``` return { "access_token": "...", "refresh_token": "...", "token_type": "bearer"} ```  
+``` return {"detail": {"message": "Too many failed login attempts", "retry_after_minutes": "..."}} (429 TOO_MANY_REQUESTS) ```
 <!-- test ok -->
+
 - `POST /auth/logout`  
 ``` return {"status": "ok", "message": "Logged out successfully"} ```  
 <!-- test ok -->
-register / login / logout user  
+register / login (lockout for 15m after 5 attempts) / logout user  
 
 - `POST /auth/refresh`  
 refresh access token  
@@ -67,12 +69,12 @@ get user informations
 
 - `GET /pantry`  
 retrieve pantry informations (no associated list of products)  
-``` return {"id": ..., "creator": "...", "kcal_threshold": ...} ```  
+``` return {"id": ..., "creator": "...", "kcal_threshold": ..., "users": [{"username": "..."}]} ```  
 <!-- test ok --> 
 
 - `POST /update-threshold`  
-update the kcal-threshold for your pantry  
-``` return {"id": ..., "creator": "...", "kcal_threshold": ...} ```  
+update the kcal-threshold for the user  
+``` return {"id": ..., "creator": "...", "kcal_threshold": ..., "users": [{"username": "..."}]} ```   
 <!-- test ok --> 
 
 - `POST /pantry-share-requests`  
@@ -91,9 +93,16 @@ list all pending join requests sent to your pantry
 
 - `POST /pantry/leave`  
 get back to your own local pantry (exit shared pantry)  
-``` return {"detail": "You are already in your own pantry"} (400: bad request)```  
+``` return {"detail": "You are already in your own pantry"} (400: bad request) ```  
 ``` return {"status": "ok", "message": "Returned to your own pantry", "local": true} ```
 <!-- test ok --> 
+
+- `POST /pantry/remove/{username}`  
+remove user from your own pantry  
+``` return {"detail":"You are not in your own pantry"} (400) ```  
+``` return {"status": "ok", "message": "... removed successfully"} ```  
+ ``` return {"detail": "User not found"} (404) ```
+<!-- test ok -->
 
 - `POST /pantry-share-requests/{request_id}/approve`  
 ``` return {"status": "ok", "message": "request accepted successfully"} ```  
@@ -158,7 +167,7 @@ list all products in your current pantry
 eat a list of products and their quantities   
 <!-- EX. {product_id, quantity},{product_id, quantity}... -->
 ``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "not_exceeded"} ```  
-``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "exceeded: ..."} ```  
+``` return {"status": "ok", "message": "event created successfully", "kcal_threshold": "exceeded: ... / ..."} ```  
 ``` return {"detail": "Insufficient quantity for product: ..."} (400) ``` 
 <!-- test ok (NO NOTIFICATION) -->
 
@@ -187,21 +196,25 @@ retrieve the total kcal reached every day in the last 30 days and the threshold 
 <!-- GET daily/monthly statistics from events -->
 <!-- POST delete product (sets product.active to false) -->
 <!-- POST delete category (sets category.active to false) only if no product uses it -->
-?? POST modify product
+?? POST modify product (name, category)
 ?? GET events and threshold
+<!-- POST remove from your pantry (by username) -->
 <!-- GET /me retrieve user informations(id, name, username) -->
 <!-- GET /all_products retrieve list of products with no pantry info -->
 <!-- GET product_by_id (id in querystring) -->
 <!-- POST logout invalidates token jwt -->
 
-- TODO 
+- TODO  
+<!-- decomment TODO of notifications (notifications.py)  and fix initialization -->
+<!-- add creator_id to event and kcal_threshold to users and tailor statistics for each user -->
+<!-- add login attempt limit to 5 wrong attempts (modify users table with attempt_n, date_attempt) -->
+<!-- modify pantry response to add list of usernames in pantry -->
 <!-- modify product/event quantity integer -> float -->
 <!-- add "local" field to user for changing pantry -->
 <!-- modify request share based by username of pantry creator -->
 <!-- modify add_product and add_category to return inserted item instead of pantry -->
 <!-- modify get/pantry to retrieve only pantry informations (id, creator:username, kcal_threshold) -->
 <!-- modify product_with_EAN in add_product check null-ean implementation -->
-add creator_id to event and kcal_threshold to users and tailor statistics for each user
 <!-- fix post/eat -->
 <!-- fix delete category (gives conflicts when not) -->
 <!-- fix retrieve share requests -->

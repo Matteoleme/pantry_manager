@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS users (
     own_token_share VARCHAR(260) NOT NULL,
     fcm_token VARCHAR(512),
     local BOOLEAN NOT NULL DEFAULT TRUE,
-    session_version INTEGER NOT NULL DEFAULT 0
+    session_version INTEGER NOT NULL DEFAULT 0,
+    kcal_threshold INTEGER NOT NULL DEFAULT 0,
+    login_attempt_n INTEGER NOT NULL DEFAULT 0,
+    login_date_last_attempt TIMESTAMPTZ
 );
 
 -- PANTRY
@@ -93,11 +96,13 @@ CREATE TABLE IF NOT EXISTS events (
     id SERIAL PRIMARY KEY,
     token_share VARCHAR(260) NOT NULL,
     product_id INTEGER NOT NULL,
+    creator_id INTEGER NOT NULL,
     event_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     kcal INTEGER NOT NULL DEFAULT 0,
     quantity NUMERIC(12,3) NOT NULL,
     unit VARCHAR(10) NOT NULL,
     category VARCHAR(50) NOT NULL,
+    
 
     CONSTRAINT fk_events_pantry
         FOREIGN KEY (token_share)
@@ -105,7 +110,11 @@ CREATE TABLE IF NOT EXISTS events (
 
     CONSTRAINT fk_events_product
         FOREIGN KEY (product_id)
-        REFERENCES products(id)
+        REFERENCES products(id),
+
+    CONSTRAINT fk_events_creator
+        FOREIGN KEY (creator_id)
+        REFERENCES users(id)
         
 );
 
