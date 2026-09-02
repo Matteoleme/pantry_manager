@@ -36,6 +36,7 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=255)
     #token_share: str = Field(min_length=1, max_length=260)
 
+    '''
     @field_validator("name", "username")
     @classmethod
     def cannot_contain_colon(cls, value: str) -> str:
@@ -43,6 +44,7 @@ class UserCreate(BaseModel):
             raise ValueError("Name and username cannot contain ':'")
 
         return value
+    '''
 
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -124,7 +126,7 @@ class PantryShareRequestResponseInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    requester_id: int
+    #requester_id: int
     requester_username: str
     requester_name: str
     status: str
