@@ -62,3 +62,18 @@ data class PantryResponse(
     @SerialName("kcal_threshold") val kcalThreshold: Int,
     val users: List<PantryUser> = emptyList()
 )
+
+@Serializable
+data class PantryShareRequestCreate(
+    val username: String
+)
+
+@Serializable
+data class PantryShareRequestResponse(
+    val id: Int,
+    @SerialName("requester_username") val requesterUsername: String,
+    @SerialName("requester_name") val requesterName: String? = null,
+    val status: String,
+    @SerialName("created_at") val createdAt: String? = null
+)
+

@@ -41,6 +41,24 @@ interface PantryApi {
         @Body request: QuantityUpdate
     ): Response<Unit>
 
+    @POST("pantry-share-requests")
+    suspend fun createShareRequest(@Body request: PantryShareRequestCreate): Response<Unit>
+
+    @GET("retrieve-pantry-share-requests")
+    suspend fun getShareRequests(): Response<List<PantryShareRequestResponse>>
+
+    @POST("pantry-share-requests/{request_id}/approve")
+    suspend fun approveShareRequest(@Path("request_id") requestId: Int): Response<Unit>
+
+    @POST("pantry-share-requests/{request_id}/reject")
+    suspend fun rejectShareRequest(@Path("request_id") requestId: Int): Response<Unit>
+
+    @POST("pantry/leave")
+    suspend fun leavePantry(): Response<Unit>
+
+    @POST("pantry/remove/{username}")
+    suspend fun removeUser(@Path("username") username: String): Response<Unit>
+
     companion object {
         const val BASE_URL = NetworkConfig.BACKEND_BASE_URL
     }
