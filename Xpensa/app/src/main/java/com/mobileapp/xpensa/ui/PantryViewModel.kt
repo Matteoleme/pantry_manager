@@ -24,6 +24,8 @@ import com.mobileapp.xpensa.data.api.ProductCreate
 import com.mobileapp.xpensa.data.api.ProductResponse
 import com.mobileapp.xpensa.data.api.QuantityUpdate
 import com.mobileapp.xpensa.data.api.ThresholdUpdate
+import com.mobileapp.xpensa.data.api.PantryShareRequestCreate
+import com.mobileapp.xpensa.data.api.PantryShareRequestResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -167,6 +169,8 @@ class PantryViewModel(
                         pantryUsers = pantryResponse?.body()?.users?.map { it.username } ?: emptyList()
                     )
                 }
+
+                fetchShareRequests()
 
                 if (lastDate != today) {
                     dataStoreManager.saveDailyCalories(0, today)
@@ -710,6 +714,245 @@ class PantryViewModel(
     fun clearStoreSearch() {
         _uiState.update { it.copy(storeSearchResults = emptyList(), storeSearchError = null) }
     }
+
+    fun fetchShareRequests() {
+        _uiState.update { it.copy(isFetchingShareRequests = true) }
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.getShareRequests()
+                val rawString = response.body()?.string()
+                android.util.Log.d("PantryViewModel", "fetchShareRequests [code=${response.code()}]: $rawString")
+
+                if (response.isSuccessful && !rawString.isNullOrBlank()) {
+                    val requests = parseShareRequestsJson(rawString)
+                    android.util.Log.d("PantryViewModel", "Parsed share requests (${requests.size}): $requests")
+                    _uiState.update { state ->
+                        state.copy(
+                            shareRequests = requests,
+                            isFetchingShareRequests = false
+                        )
+                    }
+                } else {
+                    android.util.Log.w("PantryViewModel", "Errore fetchShareRequests: ${response.code()}")
+                    _uiState.update { it.copy(isFetchingShareRequests = false) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Errore recupero richieste condivisione", e)
+                _uiState.update { it.copy(isFetchingShareRequests = false) }
+            }
+        }
+    }
+
+    private fun parseShareRequestsJson(rawJson: String): List<PantryShareRequestResponse> {
+        return try {
+            val jsonElement = json.parseToJsonElement(rawJson)
+            val jsonArray = when (jsonElement) {
+                is kotlinx.serialization.json.JsonArray -> jsonElement
+                is kotlinx.serialization.json.JsonObject -> {
+                    val arrayKey = listOf("requests", "share_requests", "pantry_share_requests", "data", "items")
+                        .find { key -> jsonElement[key] is kotlinx.serialization.json.JsonArray }
+                    if (arrayKey != null) {
+                        jsonElement[arrayKey] as kotlinx.serialization.json.JsonArray
+                    } else {
+                        kotlinx.serialization.json.buildJsonArray { add(jsonElement) }
+                    }
+                }
+                else -> return emptyList()
+            }
+
+            jsonArray.mapNotNull { element ->
+                try {
+                    val obj = element as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
+                    
+                    val id = obj["id"]?.jsonPrimitive?.content?.toIntOrNull() 
+                        ?: obj["request_id"]?.jsonPrimitive?.content?.toIntOrNull() 
+                        ?: 0
+
+                    val reqUsername = obj["requester_username"]?.jsonPrimitive?.content
+                        ?: obj["requester"]?.jsonPrimitive?.content
+                        ?: obj["username"]?.jsonPrimitive?.content
+                        ?: obj["sender_username"]?.jsonPrimitive?.content
+                        ?: obj["from_username"]?.jsonPrimitive?.content
+
+                    val reqName = obj["requester_name"]?.jsonPrimitive?.content
+                        ?: obj["sender_name"]?.jsonPrimitive?.content
+                        ?: obj["name"]?.jsonPrimitive?.content
+
+                    val status = obj["status"]?.jsonPrimitive?.content ?: "pending"
+                    val createdAt = obj["created_at"]?.jsonPrimitive?.content
+
+                    PantryShareRequestResponse(
+                        id = id,
+                        requesterUsername = reqUsername,
+                        requesterName = reqName,
+                        status = status,
+                        createdAt = createdAt
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("PantryViewModel", "Errore parsing elemento richiesta", e)
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PantryViewModel", "Errore parsing JSON richieste", e)
+            emptyList()
+        }
+    }
+
+    fun sendShareRequest(targetUsername: String) {
+        val trimmed = targetUsername.trim()
+        if (trimmed.isBlank()) {
+            _uiState.update { it.copy(shareActionError = "Inserisci un nome utente valido") }
+            return
+        }
+        if (uiState.value.pantryUsers.any { it.equals(trimmed, ignoreCase = true) }) {
+            _uiState.update { it.copy(shareActionError = "L'utente fa già parte della dispensa") }
+            return
+        }
+
+        _uiState.update { it.copy(isSendingShareRequest = true, shareActionError = null, shareActionSuccessMessage = null) }
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.createShareRequest(PantryShareRequestCreate(trimmed))
+                if (response.isSuccessful) {
+                    _uiState.update { it.copy(
+                        isSendingShareRequest = false,
+                        shareActionSuccessMessage = "Richiesta inviata a $trimmed"
+                    ) }
+                    fetchShareRequests()
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    _uiState.update { it.copy(
+                        isSendingShareRequest = false,
+                        shareActionError = errorMsg
+                    ) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Errore invio richiesta condivisione", e)
+                _uiState.update { it.copy(
+                    isSendingShareRequest = false,
+                    shareActionError = e.localizedMessage ?: "Errore di rete"
+                ) }
+            }
+        }
+    }
+
+    fun approveShareRequest(requestId: Int) {
+        _uiState.update { it.copy(isProcessingShareRequest = true, shareActionError = null, shareActionSuccessMessage = null) }
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.approveShareRequest(requestId)
+                if (response.isSuccessful) {
+                    _uiState.update { it.copy(
+                        isProcessingShareRequest = false,
+                        shareActionSuccessMessage = "Richiesta approvata"
+                    ) }
+                    refreshData()
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    _uiState.update { it.copy(
+                        isProcessingShareRequest = false,
+                        shareActionError = errorMsg
+                    ) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Errore approvazione richiesta", e)
+                _uiState.update { it.copy(
+                    isProcessingShareRequest = false,
+                    shareActionError = e.localizedMessage ?: "Errore di rete"
+                ) }
+            }
+        }
+    }
+
+    fun rejectShareRequest(requestId: Int) {
+        _uiState.update { it.copy(isProcessingShareRequest = true, shareActionError = null, shareActionSuccessMessage = null) }
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.rejectShareRequest(requestId)
+                if (response.isSuccessful) {
+                    _uiState.update { it.copy(
+                        isProcessingShareRequest = false,
+                        shareActionSuccessMessage = "Richiesta rifiutata"
+                    ) }
+                    fetchShareRequests()
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    _uiState.update { it.copy(
+                        isProcessingShareRequest = false,
+                        shareActionError = errorMsg
+                    ) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Errore rifiuto richiesta", e)
+                _uiState.update { it.copy(
+                    isProcessingShareRequest = false,
+                    shareActionError = e.localizedMessage ?: "Errore di rete"
+                ) }
+            }
+        }
+    }
+
+    fun removeUserFromPantry(username: String) {
+        _uiState.update { it.copy(isRemovingUser = true, shareActionError = null, shareActionSuccessMessage = null) }
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.removeUser(username)
+                if (response.isSuccessful) {
+                    _uiState.update { it.copy(
+                        isRemovingUser = false,
+                        shareActionSuccessMessage = "Utente $username rimosso dalla dispensa"
+                    ) }
+                    refreshData()
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    _uiState.update { it.copy(
+                        isRemovingUser = false,
+                        shareActionError = errorMsg
+                    ) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Errore rimozione utente", e)
+                _uiState.update { it.copy(
+                    isRemovingUser = false,
+                    shareActionError = e.localizedMessage ?: "Errore di rete"
+                ) }
+            }
+        }
+    }
+
+    fun leavePantry(onSuccess: (() -> Unit)? = null) {
+        _uiState.update { it.copy(isLeavingPantry = true, shareActionError = null, shareActionSuccessMessage = null) }
+        viewModelScope.launch {
+            try {
+                val response = pantryApi.leavePantry()
+                if (response.isSuccessful) {
+                    _uiState.update { it.copy(
+                        isLeavingPantry = false,
+                        shareActionSuccessMessage = "Hai lasciato la dispensa"
+                    ) }
+                    refreshData()
+                    onSuccess?.invoke()
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    _uiState.update { it.copy(
+                        isLeavingPantry = false,
+                        shareActionError = errorMsg
+                    ) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Errore uscita dispensa", e)
+                _uiState.update { it.copy(
+                    isLeavingPantry = false,
+                    shareActionError = e.localizedMessage ?: "Errore di rete"
+                ) }
+            }
+        }
+    }
+
+    fun clearShareActionMessages() {
+        _uiState.update { it.copy(shareActionError = null, shareActionSuccessMessage = null) }
+    }
 }
 
 data class ScannedProduct(
@@ -745,7 +988,15 @@ data class PantryUiState(
     val pantryUsers: List<String> = emptyList(),
     val isAddingProduct: Boolean = false,
     val addProductSuccess: Boolean = false,
-    val addProductError: String? = null
+    val addProductError: String? = null,
+    val shareRequests: List<PantryShareRequestResponse> = emptyList(),
+    val isFetchingShareRequests: Boolean = false,
+    val isSendingShareRequest: Boolean = false,
+    val isProcessingShareRequest: Boolean = false,
+    val isRemovingUser: Boolean = false,
+    val isLeavingPantry: Boolean = false,
+    val shareActionError: String? = null,
+    val shareActionSuccessMessage: String? = null
 ) {
     fun updateLocationSortedSearchResults(results: List<StoreSearchResult>): PantryUiState {
         val sorted = if (userLocation != null) {
@@ -779,3 +1030,4 @@ data class PantryUiState(
             matchesSearch && matchesFilters
         }
 }
+

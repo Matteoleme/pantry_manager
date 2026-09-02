@@ -1,5 +1,6 @@
 package com.mobileapp.xpensa.data.api
 
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -45,7 +46,7 @@ interface PantryApi {
     suspend fun createShareRequest(@Body request: PantryShareRequestCreate): Response<Unit>
 
     @GET("retrieve-pantry-share-requests")
-    suspend fun getShareRequests(): Response<List<PantryShareRequestResponse>>
+    suspend fun getShareRequests(): Response<ResponseBody>
 
     @POST("pantry-share-requests/{request_id}/approve")
     suspend fun approveShareRequest(@Path("request_id") requestId: Int): Response<Unit>

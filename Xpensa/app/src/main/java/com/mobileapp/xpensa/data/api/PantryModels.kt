@@ -70,10 +70,15 @@ data class PantryShareRequestCreate(
 
 @Serializable
 data class PantryShareRequestResponse(
-    val id: Int,
-    @SerialName("requester_username") val requesterUsername: String,
+    val id: Int = 0,
+    @SerialName("requester_username") val requesterUsername: String? = null,
     @SerialName("requester_name") val requesterName: String? = null,
-    val status: String,
+    val username: String? = null,
+    val status: String? = null,
     @SerialName("created_at") val createdAt: String? = null
-)
+) {
+    val displayUsername: String
+        get() = requesterUsername ?: username ?: requesterName ?: "Utente"
+}
+
 
