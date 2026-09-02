@@ -163,7 +163,8 @@ class PantryViewModel(
                         stores = stores,
                         pantryId = pantryResponse?.body()?.id,
                         pantryCreatorId = pantryResponse?.body()?.creator,
-                        kcalThreshold = pantryResponse?.body()?.kcalThreshold
+                        kcalThreshold = pantryResponse?.body()?.kcalThreshold,
+                        pantryUsers = pantryResponse?.body()?.users?.map { it.username } ?: emptyList()
                     )
                 }
 
@@ -741,6 +742,7 @@ data class PantryUiState(
     val pantryId: Int? = null,
     val pantryCreatorId: String? = null,
     val kcalThreshold: Int? = null,
+    val pantryUsers: List<String> = emptyList(),
     val isAddingProduct: Boolean = false,
     val addProductSuccess: Boolean = false,
     val addProductError: String? = null

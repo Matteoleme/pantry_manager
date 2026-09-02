@@ -51,8 +51,14 @@ data class ThresholdUpdate(
 )
 
 @Serializable
+data class PantryUser(
+    val username: String
+)
+
+@Serializable
 data class PantryResponse(
     val id: Int,
     val creator: String,
-    @SerialName("kcal_threshold") val kcalThreshold: Int
+    @SerialName("kcal_threshold") val kcalThreshold: Int,
+    val users: List<PantryUser> = emptyList()
 )
