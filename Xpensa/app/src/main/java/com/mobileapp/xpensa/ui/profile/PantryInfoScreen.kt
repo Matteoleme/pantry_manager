@@ -244,7 +244,7 @@ fun PantryInfoScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Aggiungi Membro",
+                            text = "Join pantry",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
