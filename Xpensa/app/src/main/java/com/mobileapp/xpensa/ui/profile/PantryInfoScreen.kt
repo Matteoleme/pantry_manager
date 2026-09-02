@@ -165,7 +165,7 @@ fun PantryInfoScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Connected Users",
+                            text = "Pantry Users",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
