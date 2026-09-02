@@ -41,7 +41,8 @@ fun MealConsumptionScreen(
         val isAvailable = product.quantity > 0.0
         val matchesCategory = uiState.consumptionSelectedCategories.isEmpty() || 
                              uiState.consumptionSelectedCategories.contains(product.category)
-        isAvailable && matchesCategory
+        val matchesSearch = uiState.searchQuery.isBlank() || product.name.contains(uiState.searchQuery, ignoreCase = true)
+        isAvailable && matchesCategory && matchesSearch
     }
 
     Column(

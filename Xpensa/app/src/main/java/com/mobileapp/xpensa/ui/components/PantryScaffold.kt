@@ -46,6 +46,16 @@ fun PantryScaffold(
     )
 
     val isAuthScreen = currentDestination == PantryDestination.Login || currentDestination == PantryDestination.Register
+    val showSearch = currentDestination == PantryDestination.Home ||
+                     currentDestination == PantryDestination.Consuma ||
+                     currentDestination == PantryDestination.ManageProducts
+
+    LaunchedEffect(currentDestination) {
+        if (!showSearch) {
+            isSearchActive = false
+            onSearchQueryChange("")
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -118,7 +128,7 @@ fun PantryScaffold(
                             }
                         },
                         actions = {
-                            if (!isSearchActive) {
+                            if (showSearch && !isSearchActive) {
                                 IconButton(onClick = { isSearchActive = true }) {
                                     Icon(Icons.Default.Search, contentDescription = "Search")
                                 }
