@@ -37,6 +37,11 @@ fun PantryInfoScreen(
     var kcalThresholdInput by remember { mutableStateOf("") }
     var isEditing by remember { mutableStateOf(false) }
 
+    val isCurrentUsersOwner = remember(uiState.pantryCreatorId, uiState.currentUsername) {
+        !uiState.pantryCreatorId.isNullOrBlank() &&
+                uiState.pantryCreatorId.equals(uiState.currentUsername, ignoreCase = true)
+    }
+
     var userToRemoveForConfirmation by remember { mutableStateOf<String?>(null) }
     var addMemberUsername by remember { mutableStateOf("") }
     var requestToApproveForConfirmation by remember { mutableStateOf<PantryShareRequestResponse?>(null) }
@@ -182,9 +187,6 @@ fun PantryInfoScreen(
                             textAlign = TextAlign.Center
                         )
                     } else {
-                        val isCurrentUsersOwner = !uiState.pantryCreatorId.isNullOrBlank() &&
-                                uiState.pantryCreatorId.equals(uiState.currentUsername, ignoreCase = true)
-
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             uiState.pantryUsers.forEach { username ->
                                 val isCurrentUser = !uiState.currentUsername.isNullOrBlank() &&
@@ -459,32 +461,34 @@ fun PantryInfoScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (!isCurrentUsersOwner) {
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Leave Pantry Button
-            Button(
-                onClick = { showLeavePantryConfirmation = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                ),
-                enabled = !uiState.isLeavingPantry
-            ) {
-                if (uiState.isLeavingPantry) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onError
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Uscita in corso...")
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Lascia Dispensa")
+                // Leave Pantry Button
+                Button(
+                    onClick = { showLeavePantryConfirmation = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    enabled = !uiState.isLeavingPantry
+                ) {
+                    if (uiState.isLeavingPantry) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Uscita in corso...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Lascia Dispensa")
+                    }
                 }
             }
 
