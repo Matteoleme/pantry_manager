@@ -1,12 +1,16 @@
 package com.mobileapp.xpensa.ui.notifications
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.mobileapp.xpensa.MainActivity
 import com.mobileapp.xpensa.R
 
@@ -34,7 +38,18 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    fun showPantryShareRequestNotification(requestId: String) {
+    fun showPantryShareRequestNotification(requestId: String, requesterName: String? = null) {
+        // Garantisce che il canale delle notifiche sia creato
+        createNotificationChannel()
+
+        // Verifica permesso notifiche per Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                Log.w("NotificationHelper", "Permesso POST_NOTIFICATIONS non concesso. Impossibile mostrare la notifica.")
+                return
+            }
+        }
+
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra(EXTRA_NOTIFICATION_TYPE, TYPE_PANTRY_SHARE_REQUEST)
@@ -48,12 +63,17 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // TODO: Inserire un'icona appropriata (es. R.drawable.ic_notification).
-        // Al momento usiamo ic_launcher come fallback.
+        val title = "New Pantry Sharing Request"
+        val contentText = if (!requesterName.isNullOrBlank()) {
+            "$requesterName wants to join your pantry."
+        } else {
+            "Someone wants to join your pantry."
+        }
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Nuova richiesta di condivisione")
-            .setContentText("Qualcuno vuole condividere una dispensa con te!")
+            .setContentTitle(title)
+            .setContentText(contentText)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
