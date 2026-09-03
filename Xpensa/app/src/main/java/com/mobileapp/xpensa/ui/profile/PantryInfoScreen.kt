@@ -182,11 +182,15 @@ fun PantryInfoScreen(
                             textAlign = TextAlign.Center
                         )
                     } else {
+                        val isCurrentUsersOwner = !uiState.pantryCreatorId.isNullOrBlank() &&
+                                uiState.pantryCreatorId.equals(uiState.currentUsername, ignoreCase = true)
+
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             uiState.pantryUsers.forEach { username ->
                                 val isCurrentUser = !uiState.currentUsername.isNullOrBlank() &&
                                         username.equals(uiState.currentUsername, ignoreCase = true)
                                 val displayName = if (isCurrentUser) "me" else username
+                                val canRemoveThisUser = isCurrentUsersOwner && username != uiState.pantryCreatorId && !isCurrentUser
 
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -212,7 +216,7 @@ fun PantryInfoScreen(
                                         )
                                     }
 
-                                    if (username != uiState.pantryCreatorId && !isCurrentUser) {
+                                    if (canRemoveThisUser) {
                                         IconButton(
                                             onClick = { userToRemoveForConfirmation = username },
                                             enabled = !uiState.isRemovingUser
