@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from .database import get_db
+from .database import get_db, SessionLocal
 from .models import User
 from .security import decode_access_token
 
@@ -57,3 +57,23 @@ def get_current_user(
         )
     
     return user
+
+async def validate_access_token_on_websocket(token: str, session_version: int) -> bool:
+    try:
+        token_data = decode_access_token(token)
+    except ValueError:
+        return False
+
+    #make sure session version in token is same as registered
+    #if session_version != int(token_data["session_version"]):
+    #    return False
+
+    db = SessionLocal()
+    try:
+        user = db.get(User, token_data["user_id"])    
+        if user is None or user.session_version != session_version:
+            return False
+
+        return True
+    finally:
+        db.close()
