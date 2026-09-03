@@ -12,11 +12,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import retrofit2.Response
 
+import android.util.Log
 import com.mobileapp.xpensa.data.api.RefreshTokenRequest
 
 class AuthRepository(
     private val api: AuthApi,
-    private val dataStoreManager: DataStoreManager
+    private val dataStoreManager: DataStoreManager,
+    private val fcmTokenRepository: FcmTokenRepository? = null
 ) {
     suspend fun register(request: RegisterRequest): Result<Unit> {
         return try {
@@ -39,6 +41,14 @@ class AuthRepository(
                 if (body != null) {
                     dataStoreManager.saveAuthToken(body.accessToken, body.refreshToken, body.tokenType)
                     dataStoreManager.saveCurrentUsername(request.username)
+
+                    // Registrazione del token FCM sul backend dopo un login riuscito (non bloccante)
+                    try {
+                        fcmTokenRepository?.registerTokenWithBackend()
+                    } catch (e: Exception) {
+                        Log.e("AuthRepository", "Errore non bloccante durante la registrazione del token FCM dopo il login", e)
+                    }
+
                     Result.success(Unit)
                 } else {
                     Result.failure(Exception("Empty response body"))

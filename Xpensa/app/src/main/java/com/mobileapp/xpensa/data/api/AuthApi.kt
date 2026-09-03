@@ -4,6 +4,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 
 interface AuthApi {
     @POST("auth/register")
@@ -23,6 +24,9 @@ interface AuthApi {
 
     @POST("/auth/change_password")
     suspend fun changePassword(@Body request: ChangePasswordRequest): Response<Unit>
+
+    @PUT("users/me/device")
+    suspend fun updateDeviceToken(@Body request: DeviceTokenRequest): Response<Unit>
 
     companion object {
         const val BASE_URL = NetworkConfig.BACKEND_BASE_URL

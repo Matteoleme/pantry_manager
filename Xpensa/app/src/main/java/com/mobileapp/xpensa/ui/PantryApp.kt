@@ -33,6 +33,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 
 import com.mobileapp.xpensa.data.AuthRepository
+import com.mobileapp.xpensa.data.FcmTokenRepository
 import com.mobileapp.xpensa.data.api.AuthApi
 import com.mobileapp.xpensa.data.api.AuthInterceptor
 import com.mobileapp.xpensa.data.api.TokenAuthenticator
@@ -107,7 +108,8 @@ fun PantryApp() {
             .create(PantryApi::class.java)
     }
 
-    val authRepository = remember { AuthRepository(authApi, dataStoreManager) }
+    val fcmTokenRepository = remember { FcmTokenRepository(dataStoreManager, authApi) }
+    val authRepository = remember { AuthRepository(authApi, dataStoreManager, fcmTokenRepository) }
 
     val authViewModel: AuthViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {

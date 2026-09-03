@@ -56,3 +56,9 @@ data class CategoryResponse(
     val username: String? = null
 )
 
+@Serializable
+data class DeviceTokenRequest(
+    @SerialName("fcm_token") val fcmToken: String
+)
+
+

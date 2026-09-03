@@ -101,7 +101,7 @@ dependencies {
     implementation(libs.barcode.scanning)
 
     // Firebase
-    // implementation(platform(libs.firebase.bom))
-    // implementation(libs.firebase.messaging)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
 }
