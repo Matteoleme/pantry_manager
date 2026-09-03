@@ -26,6 +26,14 @@ import com.mobileapp.xpensa.ui.stores.StoresScreen
 import com.mobileapp.xpensa.ui.theme.XpensaTheme
 
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorManager
+import android.widget.Toast
+import com.mobileapp.xpensa.sensor.ShakeDetector
 import android.app.Application
 import android.os.Build
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -174,6 +182,46 @@ fun PantryApp(
     }
 
     val uiState by pantryViewModel.uiState.collectAsState()
+
+    // Sensore Accelerometro - Shake Detector per apertura rapida dello Scanner EAN
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, authToken) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        val shakeDetector = ShakeDetector {
+            // Attiva lo scanner solo se l'utente è loggato e non si trova già nella schermata scanner
+            if (authToken != null && backStack.last() != PantryDestination.Scanner) {
+                Toast.makeText(context, "Shake rilevato! Apertura Scanner...", Toast.LENGTH_SHORT).show()
+                backStack.add(PantryDestination.Scanner)
+            }
+        }
+
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (sensorManager != null && accelerometer != null) {
+                        sensorManager.registerListener(
+                            shakeDetector,
+                            accelerometer,
+                            SensorManager.SENSOR_DELAY_UI
+                        )
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    sensorManager?.unregisterListener(shakeDetector)
+                }
+                else -> {}
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            sensorManager?.unregisterListener(shakeDetector)
+        }
+    }
 
     PantryScaffold(
         currentDestination = backStack.last() as PantryDestination,
@@ -358,9 +406,13 @@ fun PantryApp(
                             pantryViewModel.setScannedEan(code)
                             // 2. Lancia in automatico la chiamata a Open Food Facts
                             pantryViewModel.fetchProductFromEan(code)
-                            // Esempio: torna indietro dopo aver scansionato
-                            if (backStack.size > 1) {
+                            // 3. Chiudi la schermata dello Scanner
+                            if (backStack.size > 0 && backStack.last() == PantryDestination.Scanner) {
                                 backStack.removeAt(backStack.size - 1)
+                            }
+                            // 4. Se non si è già nella schermata NewProduct, naviga verso NewProductScreen
+                            if (backStack.isEmpty() || backStack.last() != PantryDestination.NewProduct) {
+                                backStack.add(PantryDestination.NewProduct)
                             }
                         },
                         onNavigateBack = {

@@ -85,10 +85,16 @@ fun NewProductScreen(
         }
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearFetchState()
+        }
+    }
+
     LaunchedEffect(uiState.scannedEan) {
         uiState.scannedEan?.let { scannedCode ->
-        ean = scannedCode
-    }
+            ean = scannedCode
+        }
     }
 
     if (showNewCategoryDialog) {

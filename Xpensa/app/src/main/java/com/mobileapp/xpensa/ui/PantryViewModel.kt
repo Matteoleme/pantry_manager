@@ -647,7 +647,7 @@ class PantryViewModel(
     }
 
     fun clearFetchState() {
-        _uiState.update { it.copy(fetchError = null, lastScannedProduct = null) }
+        _uiState.update { it.copy(fetchError = null, lastScannedProduct = null, scannedEan = null) }
     }
 
     fun setScannedEan(ean: String) {
