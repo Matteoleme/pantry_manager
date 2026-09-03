@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timezone, time, date, timedelta
 from decimal import Decimal
 
-from .database import Base, engine, get_db
+from .database import Base, engine, get_db, SessionLocal
 from .models import (
     Event,
     Pantry,
@@ -53,6 +54,7 @@ from .auth import get_current_user
 from .security import (
     create_access_token,
     create_refresh_token,
+    decode_access_token,
     generate_initial_token_share,
     hash_password,
     verify_password,
@@ -89,6 +91,74 @@ DEFAULT_CATEGORIES = [
     "Drinks",
     "Other",
 ]
+
+
+from .websoket_manager import pantry_manager
+############# WebSocket live update client ###############
+@app.websocket("/ws/pantry")
+async def pantry_websocket(
+    websocket: WebSocket,
+):
+    token = websocket.query_params.get("token")
+
+    #print(token)
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    try:
+        token_data = decode_access_token(token)
+    except ValueError:
+        await websocket.close(code=1008)
+        return
+
+    db = SessionLocal()
+    try:
+        user = db.get(User, int(token_data.get("user_id")))
+
+        if user is None or user.session_version != int(token_data.get("session_version")):
+            await websocket.close(code=1008)
+            return
+        token_share = user.token_share
+        await pantry_manager.connect(
+            token_share,
+            websocket,
+            access_token=token,
+            session_version=user.session_version,
+        )
+
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            pantry_manager.disconnect(
+                token_share,
+                websocket,
+            )
+    finally:
+        db.close()
+
+async def broadcast(username: str, token_share: str, product: Product, type: str):
+    ### broadcast event via websocket
+    await pantry_manager.broadcast(
+        
+        token_share,
+        {
+            "event_creator": username,
+            "type": type,
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "EAN": product.EAN,
+                "unit": product.unit,
+                "quantity": float(product.quantity),
+                "category": product.category,
+                "kcal": product.kcal,
+                #"active": product.active,
+            },
+        },
+    )
+
 
 ########## USER registration (and new local pantry creation) ##########
 @app.post(
@@ -1005,7 +1075,7 @@ def delete_category(
     "/add_product",
     response_model=ProductResponse,
 )
-def create_product(
+async def create_product(
     payload: ProductCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -1050,6 +1120,10 @@ def create_product(
         db.add(product)
         db.commit()
         db.refresh(product)
+
+        ### websocket live update
+        await broadcast(current_user.username, current_user.token_share, product, "product_added")
+        
         return product
 
     else:
@@ -1079,6 +1153,9 @@ def create_product(
             product_with_EAN_present.quantity = new_quantity
             db.commit()
             db.refresh(product_with_EAN_present)
+
+            ### websocket live update
+            await broadcast(current_user.username, current_user.token_share, product_with_EAN_present, "product_added")
             return product_with_EAN_present
         
         else:
@@ -1095,6 +1172,9 @@ def create_product(
             db.add(product)
             db.commit()
             db.refresh(product)
+
+            ### websocket live update
+            await broadcast(current_user.username, current_user.token_share, product, "product_added")
             return product
 
 ########## PRODUCT delete by id ##########
@@ -1102,7 +1182,7 @@ def create_product(
     "/delete_product/{product_id}",
     #response_model=CategoryResponse,
 )
-def delete_product(
+async def delete_product(
     product_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -1135,6 +1215,9 @@ def delete_product(
     product.active = False
 
     db.commit()
+
+    ### websocket live update
+    await broadcast(current_user.username, current_user.token_share, product, "product_deleted")
     
     return {
         "status": "ok",
@@ -1146,7 +1229,7 @@ def delete_product(
     "/products/{product_id}/quantity",
     response_model=ProductResponse,
 )
-def update_product_quantity(
+async def update_product_quantity(
     product_id: int,
     payload: ProductQuantityUpdate,
     current_user: User = Depends(get_current_user),
@@ -1201,6 +1284,9 @@ def update_product_quantity(
     db.refresh(pantry)
     '''
     db.refresh(product)
+
+    ### websocket live update
+    await broadcast(current_user.username, current_user.token_share, product, "product_updated")
 
     return product
 
@@ -1275,7 +1361,7 @@ def calculate_kcal(unit: str, kcal: int, quantity: Decimal) -> Decimal:
 @app.post(
     "/eat",
 )
-def create_event(
+async def create_event(
     payload: EventCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -1317,6 +1403,10 @@ def create_event(
 
         #decrement product quantity in db
         product.quantity -= requested_quantity
+
+        ### websocket live update
+        await broadcast(current_user.username, current_user.token_share, product, "product_updated")
+        
 
         #create event eat
         event = Event(

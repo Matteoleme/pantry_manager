@@ -225,7 +225,9 @@ retrieve the total kcal reached every day in the last 30 days and the threshold 
 
 <!-- send notification on reaching kcal_threshold (if != 0) -->
 <!-- send notification on request share pantry -->
- 
+
+<!-- add live update websocket on product/category modifications -->
+<!-- fix behavior on access_token change (logout/expiry)  -->
 <!-- NO when doing something on main page, return updated pantry with list of products -->
 
 <!-- check if needs Product.active.is_(True) -->
