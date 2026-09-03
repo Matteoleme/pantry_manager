@@ -51,9 +51,11 @@ class NotificationHelper(private val context: Context) {
         }
 
         val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_NOTIFICATION_TYPE, TYPE_PANTRY_SHARE_REQUEST)
+            putExtra("type", TYPE_PANTRY_SHARE_REQUEST)
             putExtra(EXTRA_REQUEST_ID, requestId)
+            putExtra("request_id", requestId)
         }
 
         val pendingIntent = PendingIntent.getActivity(

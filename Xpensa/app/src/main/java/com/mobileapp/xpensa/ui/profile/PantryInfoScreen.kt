@@ -419,8 +419,8 @@ fun PantryInfoScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = request.requesterName ?: request.displayUsername,
-                                            style = MaterialTheme.typography.bodyLarge,
+                                            text = "${request.requesterName ?: request.displayUsername} wants to join your pantry.",
+                                            style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         if (!request.requesterName.isNullOrBlank() && request.requesterName != request.displayUsername) {
@@ -433,25 +433,20 @@ fun PantryInfoScreen(
                                     }
 
                                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        IconButton(
+                                        Button(
                                             onClick = { requestToApproveForConfirmation = request },
-                                            enabled = !uiState.isProcessingShareRequest
+                                            enabled = !uiState.isProcessingShareRequest,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = "Accept",
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
+                                            Text("Accept")
                                         }
-                                        IconButton(
+                                        OutlinedButton(
                                             onClick = { requestToRejectForConfirmation = request },
-                                            enabled = !uiState.isProcessingShareRequest
+                                            enabled = !uiState.isProcessingShareRequest,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Reject",
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
+                                            Text("Reject")
                                         }
                                     }
                                 }

@@ -53,7 +53,10 @@ import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun PantryApp() {
+fun PantryApp(
+    pendingRequestId: String? = null,
+    onPendingRequestConsumed: () -> Unit = {}
+) {
     val context = LocalContext.current
     val dataStoreManager = remember { DataStoreManager(context.applicationContext) }
     val json = remember { Json { ignoreUnknownKeys = true } }
@@ -155,6 +158,18 @@ fun PantryApp() {
                 backStack.removeAt(backStack.size - 1)
             }
             backStack.add(PantryDestination.Login)
+        } else if (authToken != null) {
+            fcmTokenRepository.registerTokenWithBackend()
+        }
+    }
+
+    LaunchedEffect(pendingRequestId, authToken) {
+        if (!pendingRequestId.isNullOrBlank() && authToken != null) {
+            if (backStack.last() != PantryDestination.PantryInfo) {
+                backStack.add(PantryDestination.PantryInfo)
+            }
+            pantryViewModel.refreshData()
+            onPendingRequestConsumed()
         }
     }
 
