@@ -12,6 +12,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import retrofit2.Response
 
+import com.mobileapp.xpensa.data.api.RefreshTokenRequest
+
 class AuthRepository(
     private val api: AuthApi,
     private val dataStoreManager: DataStoreManager
@@ -83,7 +85,7 @@ class AuthRepository(
 
     suspend fun refreshToken(refreshToken: String): Result<LoginResponse> {
         return try {
-            val response = api.refreshToken(refreshToken)
+            val response = api.refreshToken(RefreshTokenRequest(refreshToken))
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {

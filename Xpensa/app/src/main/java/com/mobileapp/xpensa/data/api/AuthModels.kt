@@ -31,6 +31,11 @@ data class LoginResponse(
 )
 
 @Serializable
+data class RefreshTokenRequest(
+    @SerialName("refresh_token") val refreshToken: String
+)
+
+@Serializable
 data class UserResponse(
     val id: Int,
     val name: String,

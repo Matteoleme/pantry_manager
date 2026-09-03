@@ -139,12 +139,22 @@ fun PantryApp() {
         }
     )
 
+    val authToken by dataStoreManager.authTokenFlow.collectAsState(initial = runBlocking { dataStoreManager.authTokenFlow.first() })
+
     val initialDestination = remember {
-        val token = runBlocking { dataStoreManager.authTokenFlow.first() }
-        if (token != null) PantryDestination.Home else PantryDestination.Login
+        if (authToken != null) PantryDestination.Home else PantryDestination.Login
     }
 
     val backStack = rememberNavBackStack(initialDestination)
+
+    LaunchedEffect(authToken) {
+        if (authToken == null && backStack.last() != PantryDestination.Login && backStack.last() != PantryDestination.Register) {
+            while (backStack.size > 0) {
+                backStack.removeAt(backStack.size - 1)
+            }
+            backStack.add(PantryDestination.Login)
+        }
+    }
 
     val uiState by pantryViewModel.uiState.collectAsState()
 
