@@ -54,7 +54,7 @@ fun PantryInfoScreen(
 
     LaunchedEffect(uiState.shareActionSuccessMessage) {
         if (uiState.shareActionSuccessMessage != null && 
-            uiState.shareActionSuccessMessage!!.contains("Richiesta inviata", ignoreCase = true)
+            uiState.shareActionSuccessMessage!!.contains("request sent", ignoreCase = true)
         ) {
             addMemberUsername = ""
         }
@@ -225,7 +225,7 @@ fun PantryInfoScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
-                                                contentDescription = "Rimuovi utente",
+                                                contentDescription = "Remove user",
                                                 tint = MaterialTheme.colorScheme.error
                                             )
                                         }
@@ -275,8 +275,8 @@ fun PantryInfoScreen(
                                     viewModel.clearShareActionMessages()
                                 }
                             },
-                            label = { Text("Nome utente") },
-                            placeholder = { Text("es. mario_rossi") },
+                            label = { Text("Username") },
+                            placeholder = { Text("e.g. john_doe") },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                             enabled = !uiState.isSendingShareRequest
@@ -293,7 +293,7 @@ fun PantryInfoScreen(
                             } else {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = "Invia richiesta",
+                                    contentDescription = "Send request",
                                     tint = if (addMemberUsername.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                                 )
                             }
@@ -323,7 +323,7 @@ fun PantryInfoScreen(
                         IconButton(onClick = { viewModel.clearShareActionMessages() }) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Chiudi",
+                                contentDescription = "Close",
                                 tint = MaterialTheme.colorScheme.onErrorContainer
                             )
                         }
@@ -351,7 +351,7 @@ fun PantryInfoScreen(
                         IconButton(onClick = { viewModel.clearShareActionMessages() }) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Chiudi",
+                                contentDescription = "Close",
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
@@ -377,7 +377,7 @@ fun PantryInfoScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Richieste Ricevute",
+                            text = "Received Requests",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -401,7 +401,7 @@ fun PantryInfoScreen(
                         }
                     } else if (uiState.shareRequests.isEmpty()) {
                         Text(
-                            text = "Nessuna richiesta di condivisione in sospeso",
+                            text = "No pending share requests",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.fillMaxWidth(),
@@ -439,7 +439,7 @@ fun PantryInfoScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Check,
-                                                contentDescription = "Accetta",
+                                                contentDescription = "Accept",
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
@@ -449,7 +449,7 @@ fun PantryInfoScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
-                                                contentDescription = "Rifiuta",
+                                                contentDescription = "Reject",
                                                 tint = MaterialTheme.colorScheme.error
                                             )
                                         }
@@ -480,33 +480,25 @@ fun PantryInfoScreen(
                             color = MaterialTheme.colorScheme.onError
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Uscita in corso...")
+                        Text("Leaving pantry...")
                     } else {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Lascia Dispensa")
+                        Text("Leave Pantry")
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = "Note: Information is synchronized with the server.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary
-            )
         }
 
         // Confirmation Dialog: Remove User
         userToRemoveForConfirmation?.let { user ->
             AlertDialog(
                 onDismissRequest = { userToRemoveForConfirmation = null },
-                title = { Text("Rimuovi Utente") },
-                text = { Text("Sei sicuro di voler rimuovere '$user' dalla dispensa?") },
+                title = { Text("Remove User") },
+                text = { Text("Are you sure you want to remove '$user' from the pantry?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -514,12 +506,12 @@ fun PantryInfoScreen(
                             userToRemoveForConfirmation = null
                         }
                     ) {
-                        Text("Rimuovi", color = MaterialTheme.colorScheme.error)
+                        Text("Remove", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { userToRemoveForConfirmation = null }) {
-                        Text("Annulla")
+                        Text("Cancel")
                     }
                 }
             )
@@ -529,8 +521,8 @@ fun PantryInfoScreen(
         requestToApproveForConfirmation?.let { req ->
             AlertDialog(
                 onDismissRequest = { requestToApproveForConfirmation = null },
-                title = { Text("Accetta Richiesta") },
-                text = { Text("Vuoi accettare la richiesta di condivisione da '${req.requesterName ?: req.displayUsername}'?") },
+                title = { Text("Accept Request") },
+                text = { Text("Do you want to accept the share request from '${req.requesterName ?: req.displayUsername}'?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -538,12 +530,12 @@ fun PantryInfoScreen(
                             requestToApproveForConfirmation = null
                         }
                     ) {
-                        Text("Accetta")
+                        Text("Accept")
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { requestToApproveForConfirmation = null }) {
-                        Text("Annulla")
+                        Text("Cancel")
                     }
                 }
             )
@@ -553,8 +545,8 @@ fun PantryInfoScreen(
         requestToRejectForConfirmation?.let { req ->
             AlertDialog(
                 onDismissRequest = { requestToRejectForConfirmation = null },
-                title = { Text("Rifiuta Richiesta") },
-                text = { Text("Vuoi rifiutare la richiesta di condivisione da '${req.requesterName ?: req.displayUsername}'?") },
+                title = { Text("Reject Request") },
+                text = { Text("Do you want to reject the share request from '${req.requesterName ?: req.displayUsername}'?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -562,12 +554,12 @@ fun PantryInfoScreen(
                             requestToRejectForConfirmation = null
                         }
                     ) {
-                        Text("Rifiuta", color = MaterialTheme.colorScheme.error)
+                        Text("Reject", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { requestToRejectForConfirmation = null }) {
-                        Text("Annulla")
+                        Text("Cancel")
                     }
                 }
             )
@@ -577,8 +569,8 @@ fun PantryInfoScreen(
         if (showLeavePantryConfirmation) {
             AlertDialog(
                 onDismissRequest = { showLeavePantryConfirmation = false },
-                title = { Text("Lascia Dispensa") },
-                text = { Text("Sei sicuro di voler lasciare questa dispensa condivisa? Non avrai più accesso ai suoi prodotti.") },
+                title = { Text("Leave Pantry") },
+                text = { Text("Are you sure you want to leave this shared pantry? You will no longer have access to its products.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -586,12 +578,12 @@ fun PantryInfoScreen(
                             viewModel.leavePantry(onSuccess = { onNavigateBack() })
                         }
                     ) {
-                        Text("Lascia", color = MaterialTheme.colorScheme.error)
+                        Text("Leave", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showLeavePantryConfirmation = false }) {
-                        Text("Annulla")
+                        Text("Cancel")
                     }
                 }
             )
