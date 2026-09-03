@@ -99,6 +99,7 @@ class PantryViewModel(
                 val lastDate = dataStoreManager.lastCaloriesDateFlow.first()
                 val showOutOfStock = dataStoreManager.showOutOfStockFlow.first()
                 val stores = dataStoreManager.storesFlow.first()
+                val currentUsername = dataStoreManager.currentUsernameFlow.first()
 
                 val today = LocalDate.now().toString()
                 val dailyCalories = if (lastDate != today) 0 else storedDailyCalories
@@ -166,7 +167,8 @@ class PantryViewModel(
                         pantryId = pantryResponse?.body()?.id,
                         pantryCreatorId = pantryResponse?.body()?.creator,
                         kcalThreshold = pantryResponse?.body()?.kcalThreshold,
-                        pantryUsers = pantryResponse?.body()?.users?.map { it.username } ?: emptyList()
+                        pantryUsers = pantryResponse?.body()?.users?.map { it.username } ?: emptyList(),
+                        currentUsername = currentUsername
                     )
                 }
 
@@ -996,7 +998,8 @@ data class PantryUiState(
     val isRemovingUser: Boolean = false,
     val isLeavingPantry: Boolean = false,
     val shareActionError: String? = null,
-    val shareActionSuccessMessage: String? = null
+    val shareActionSuccessMessage: String? = null,
+    val currentUsername: String? = null
 ) {
     fun updateLocationSortedSearchResults(results: List<StoreSearchResult>): PantryUiState {
         val sorted = if (userLocation != null) {

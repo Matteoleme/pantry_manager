@@ -30,6 +30,7 @@ class DataStoreManager(private val context: Context) {
         val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
         val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         val TOKEN_TYPE_KEY = stringPreferencesKey("token_type")
+        val CURRENT_USERNAME_KEY = stringPreferencesKey("current_username")
 
         val MOCK_STORES = listOf(
             Store(
@@ -99,6 +100,33 @@ class DataStoreManager(private val context: Context) {
         preferences[TOKEN_TYPE_KEY]
     }
 
+    val currentUsernameFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        val savedUsername = preferences[CURRENT_USERNAME_KEY]
+        if (!savedUsername.isNullOrBlank()) {
+            savedUsername
+        } else {
+            val token = preferences[AUTH_TOKEN_KEY]
+            if (!token.isNullOrBlank()) {
+                try {
+                    val parts = token.split(".")
+                    if (parts.size >= 2) {
+                        val payloadBytes = android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
+                        val payloadJson = String(payloadBytes, Charsets.UTF_8)
+                        val jsonElement = json.parseToJsonElement(payloadJson)
+                        val jsonObject = jsonElement as? kotlinx.serialization.json.JsonObject
+                        jsonObject?.get("sub")?.let { 
+                            (it as? kotlinx.serialization.json.JsonPrimitive)?.content 
+                        } ?: jsonObject?.get("username")?.let { 
+                            (it as? kotlinx.serialization.json.JsonPrimitive)?.content 
+                        }
+                    } else null
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+        }
+    }
+
     val storesFlow: Flow<List<Store>> = context.dataStore.data.map { preferences ->
         val jsonString = preferences[STORES_KEY]
         if (jsonString == null) {
@@ -157,11 +185,18 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
+    suspend fun saveCurrentUsername(username: String) {
+        context.dataStore.edit { preferences ->
+            preferences[CURRENT_USERNAME_KEY] = username
+        }
+    }
+
     suspend fun clearAuthToken() {
         context.dataStore.edit { preferences ->
             preferences.remove(AUTH_TOKEN_KEY)
             preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(TOKEN_TYPE_KEY)
+            preferences.remove(CURRENT_USERNAME_KEY)
         }
     }
 
@@ -170,6 +205,7 @@ class DataStoreManager(private val context: Context) {
             preferences.remove(AUTH_TOKEN_KEY)
             preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(TOKEN_TYPE_KEY)
+            preferences.remove(CURRENT_USERNAME_KEY)
             // Possiamo anche pulire prodotti e categorie se vogliamo una logout pulita
             preferences.remove(PRODUCTS_KEY)
             preferences.remove(CATEGORIES_KEY)

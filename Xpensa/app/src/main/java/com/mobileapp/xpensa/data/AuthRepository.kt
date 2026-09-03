@@ -36,6 +36,7 @@ class AuthRepository(
                 val body = response.body()
                 if (body != null) {
                     dataStoreManager.saveAuthToken(body.accessToken, body.refreshToken, body.tokenType)
+                    dataStoreManager.saveCurrentUsername(request.username)
                     Result.success(Unit)
                 } else {
                     Result.failure(Exception("Empty response body"))
@@ -54,6 +55,7 @@ class AuthRepository(
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
+                    dataStoreManager.saveCurrentUsername(body.username)
                     Result.success(body)
                 } else {
                     Result.failure(Exception("Empty response body"))

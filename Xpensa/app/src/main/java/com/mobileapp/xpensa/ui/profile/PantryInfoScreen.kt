@@ -184,6 +184,10 @@ fun PantryInfoScreen(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             uiState.pantryUsers.forEach { username ->
+                                val isCurrentUser = !uiState.currentUsername.isNullOrBlank() &&
+                                        username.equals(uiState.currentUsername, ignoreCase = true)
+                                val displayName = if (isCurrentUser) "me" else username
+
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -202,12 +206,13 @@ fun PantryInfoScreen(
                                             tint = MaterialTheme.colorScheme.secondary
                                         )
                                         Text(
-                                            text = username,
-                                            style = MaterialTheme.typography.bodyLarge
+                                            text = displayName,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (isCurrentUser) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
 
-                                    if (username != uiState.pantryCreatorId) {
+                                    if (username != uiState.pantryCreatorId && !isCurrentUser) {
                                         IconButton(
                                             onClick = { userToRemoveForConfirmation = username },
                                             enabled = !uiState.isRemovingUser
