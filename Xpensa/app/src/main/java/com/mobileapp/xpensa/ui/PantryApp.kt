@@ -59,6 +59,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 
+import com.mobileapp.xpensa.data.api.StatsApi
+import com.mobileapp.xpensa.ui.stats.StatsScreen
+import com.mobileapp.xpensa.ui.stats.StatsViewModel
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PantryApp(
@@ -119,6 +123,18 @@ fun PantryApp(
             .create(PantryApi::class.java)
     }
 
+    //stats API
+    val statsApi = remember {
+        Retrofit.Builder()
+            .baseUrl(PantryApi.BASE_URL)
+            .client(sharedClient)
+            .addConverterFactory(
+                json.asConverterFactory("application/json".toMediaType())
+            )
+            .build()
+            .create(StatsApi::class.java)
+    }
+
     val fcmTokenRepository = remember { FcmTokenRepository(dataStoreManager, authApi) }
     val authRepository = remember { AuthRepository(authApi, dataStoreManager, fcmTokenRepository) }
 
@@ -148,6 +164,16 @@ fun PantryApp(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return PantryViewModel(context.applicationContext as Application, pantryApi) as T
+            }
+        }
+    )
+
+    //stats viewModel
+    val statsViewModel: StatsViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return StatsViewModel(statsApi) as T
             }
         }
     )
@@ -243,9 +269,18 @@ fun PantryApp(
                 }
             }
         },
+        // to open the statistics page on both bottom_navigation bar and drawer(menu)
+        /* redefined in PantryScaffold.kt
         onStatsClick = {
-            pantryViewModel.setShowStatsModal(true)
+
+            if (backStack.last() != PantryDestination.Trends) {
+                while (backStack.size > 1) {
+                    backStack.removeAt(backStack.size - 1)
+                }
+                backStack.add(PantryDestination.Trends)
+            }
         },
+        */
         searchQuery = uiState.searchQuery,
         onSearchQueryChange = { pantryViewModel.onSearchQueryChange(it) }
     ) {
@@ -370,7 +405,14 @@ fun PantryApp(
                         }
                     )
                 }
-                PantryDestination.Trends -> NavEntry(key) { TrendsScreen() }
+
+                //stats destinations points to StatsScreen with statsViewModel
+                PantryDestination.Trends -> NavEntry(key) {
+                    StatsScreen(
+                        viewModel = statsViewModel
+                    )
+                }
+
                 PantryDestination.Favorites -> NavEntry(key) { FavoritesScreen() }
                 PantryDestination.Stores -> NavEntry(key) { 
                     StoresScreen(viewModel = pantryViewModel) 
@@ -429,10 +471,15 @@ fun PantryApp(
     }
 }
 
+/*
+
+//placeholder for navigation destination Trends
 @Composable
 fun TrendsScreen() {
     Text("Trends")
 }
+
+ */
 
 @Composable
 fun FavoritesScreen() {

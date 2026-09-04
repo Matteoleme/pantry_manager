@@ -25,7 +25,7 @@ data class DrawerItem(
 fun PantryScaffold(
     currentDestination: PantryDestination,
     onNavigate: (PantryDestination) -> Unit,
-    onStatsClick: () -> Unit = {},
+    //onStatsClick: () -> Unit = {},
     searchQuery: String = "",
     onSearchQueryChange: (String) -> Unit = {},
     content: @Composable () -> Unit
@@ -40,7 +40,11 @@ fun PantryScaffold(
         DrawerItem("Manage Categories", Icons.Default.Category, PantryDestination.ManageCategories),
         DrawerItem("Pantry Settings", Icons.Default.Settings, PantryDestination.PantryInfo),
         DrawerItem("My Stores", Icons.Default.Store, PantryDestination.Stores),
-        DrawerItem("Daily Stats", Icons.Default.BarChart),
+        DrawerItem(
+            "Daily Stats",
+            Icons.Default.BarChart,
+            PantryDestination.Trends
+        ),
         DrawerItem("Shopping List", Icons.Default.ShoppingCart),
         DrawerItem("Share", Icons.Default.Share)
     )
@@ -69,11 +73,16 @@ fun PantryScaffold(
                             selected = false,
                             onClick = {
                                 scope.launch { drawerState.close() }
+
+                                /*
                                 if (item.label == "Daily Stats") {
                                     onStatsClick()
                                 } else {
                                     item.destination?.let { onNavigate(it) }
                                 }
+
+                                 */
+                                item.destination?.let { onNavigate(it) }
                             },
                             icon = { Icon(item.icon, contentDescription = item.label) }
                         )
