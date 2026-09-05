@@ -14,8 +14,9 @@ class AuthInterceptor(private val dataStoreManager: DataStoreManager) : Intercep
         val isExternalService = url.contains("openfoodfacts.org") || url.contains("openstreetmap.org")
 
         if (!isExternalService) {
-            val token = runBlocking { dataStoreManager.authTokenFlow.first() }
-            if (token != null) {
+            val token = TokenAuthenticator.getLatestAccessToken() 
+                ?: runBlocking { dataStoreManager.authTokenFlow.first() }
+            if (!token.isNullOrBlank()) {
                 val newRequest = originalRequest.newBuilder()
                     .header("Authorization", "Bearer $token")
                     .build()

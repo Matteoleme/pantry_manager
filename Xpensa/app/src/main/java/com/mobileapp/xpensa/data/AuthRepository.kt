@@ -15,6 +15,8 @@ import retrofit2.Response
 import android.util.Log
 import com.mobileapp.xpensa.data.api.RefreshTokenRequest
 
+class TokenExpiredException(val statusCode: Int, message: String) : Exception(message)
+
 class AuthRepository(
     private val api: AuthApi,
     private val dataStoreManager: DataStoreManager,
@@ -41,6 +43,7 @@ class AuthRepository(
                 if (body != null) {
                     dataStoreManager.saveAuthToken(body.accessToken, body.refreshToken, body.tokenType)
                     dataStoreManager.saveCurrentUsername(request.username)
+                    com.mobileapp.xpensa.data.api.TokenAuthenticator.setLatestAccessToken(body.accessToken)
 
                     // Registrazione del token FCM sul backend dopo un login riuscito (non bloccante)
                     try {
@@ -99,13 +102,21 @@ class AuthRepository(
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
-                    dataStoreManager.saveAuthToken(body.accessToken, body.refreshToken, body.tokenType)
-                    Result.success(body)
+                    val newRefreshToken = if (body.refreshToken.isNotBlank()) body.refreshToken else refreshToken
+                    dataStoreManager.saveAuthToken(body.accessToken, newRefreshToken, body.tokenType)
+                    com.mobileapp.xpensa.data.api.TokenAuthenticator.setLatestAccessToken(body.accessToken)
+                    Result.success(body.copy(refreshToken = newRefreshToken))
                 } else {
                     Result.failure(Exception("Empty response body"))
                 }
             } else {
-                Result.failure(Exception(parseErrorMessage(response)))
+                val code = response.code()
+                val errorMsg = parseErrorMessage(response)
+                if (code == 400 || code == 401 || code == 403) {
+                    Result.failure(TokenExpiredException(code, errorMsg))
+                } else {
+                    Result.failure(Exception("HTTP $code: $errorMsg"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -114,6 +125,7 @@ class AuthRepository(
 
     suspend fun logout(): Result<Unit> {
         return try {
+            com.mobileapp.xpensa.data.api.TokenAuthenticator.resetLatestAccessToken()
             val response = api.logout()
             dataStoreManager.clearTokens()
             if (response.isSuccessful) {
@@ -123,6 +135,7 @@ class AuthRepository(
                 Result.success(Unit) 
             }
         } catch (e: Exception) {
+            com.mobileapp.xpensa.data.api.TokenAuthenticator.resetLatestAccessToken()
             dataStoreManager.clearTokens()
             Result.success(Unit)
         }
