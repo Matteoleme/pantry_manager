@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
+import androidx.compose.ui.graphics.Color
 
 
 //creates a card with the actual kcal and the threshold and a progress bar related to the threshold for the daily kcal
@@ -30,14 +31,25 @@ fun CalorieSummaryCard(
     }
 
     val percentage = if (threshold > 0) {
-        ((totalKcal / threshold.toFloat()) * 100).toInt()
+        min(((totalKcal / threshold.toFloat()) * 100).toInt(), 100)
     } else {
         0
+    }
+
+    // The limit has been reached or exceeded
+    val limitReached = threshold > 0 && totalKcal >= threshold
+
+    // Light red background when the limit is reached
+    val backgroundColor = if (limitReached) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.surface
     }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
+        color = backgroundColor,
         tonalElevation = 3.dp
     ) {
         Column(

@@ -119,7 +119,7 @@ fun StatsScreen(
 
                         item {
                             Text(
-                                text = stats.date,
+                                text = formatDate(stats.date),
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -163,7 +163,7 @@ fun StatsScreen(
 
                         item {
                             Text(
-                                text = "${stats.startDate} → ${stats.endDate}",
+                                text = "${formatDate(stats.startDate)} → ${formatDate(stats.endDate)}",
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -217,4 +217,44 @@ private fun CategoryStatRow(
             )
         }
     }
+}
+
+private fun formatDate(date: String): String {
+
+    val parts = date.split("-")
+
+    if (parts.size != 3) {
+        return date
+    }
+
+    /*
+     * API format:
+     *
+     * YYYY-MM-DD
+     */
+    if (parts[0].length == 4) {
+
+        val year = parts[0].toIntOrNull()
+        val month = parts[1].toIntOrNull()
+        val day = parts[2].toIntOrNull()
+
+        if (month != null && day != null) {
+            return "$day/$month/$year"
+        }
+    }
+
+    /*
+     * Also support:
+     *
+     * DD-MM-YYYY
+     */
+    val day = parts[0].toIntOrNull()
+    val month = parts[1].toIntOrNull()
+    val year = parts[2].toIntOrNull()
+
+    if (day != null && month != null) {
+        return "$day/$month/$year"
+    }
+
+    return date
 }
