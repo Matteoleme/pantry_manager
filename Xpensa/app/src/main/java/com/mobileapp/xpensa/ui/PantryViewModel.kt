@@ -26,6 +26,7 @@ import com.mobileapp.xpensa.data.api.QuantityUpdate
 import com.mobileapp.xpensa.data.api.ThresholdUpdate
 import com.mobileapp.xpensa.data.api.PantryShareRequestCreate
 import com.mobileapp.xpensa.data.api.PantryShareRequestResponse
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -87,12 +88,16 @@ class PantryViewModel(
             .create(NominatimApi::class.java)
     }
 
+    private var refreshJob: Job? = null
+    private var pantryDetailsJob: Job? = null
+
     init {
         refreshData()
     }
 
-    fun refreshData() {
-        viewModelScope.launch {
+    fun refreshData(force: Boolean = false) {
+        if (refreshJob?.isActive == true && !force) return
+        refreshJob = viewModelScope.launch {
             try {
                 val localProducts = dataStoreManager.productsFlow.first()
                 val storedDailyCalories = dataStoreManager.dailyCaloriesFlow.first()
@@ -104,15 +109,7 @@ class PantryViewModel(
                 val today = LocalDate.now().toString()
                 val dailyCalories = if (lastDate != today) 0 else storedDailyCalories
 
-                // Recuperiamo la dispensa dal backend per info generali
-                val pantryResponse = try {
-                    pantryApi.getPantry()
-                } catch (e: Exception) {
-                    android.util.Log.e("PantryViewModel", "Errore chiamata pantry", e)
-                    null
-                }
-
-                // Recuperiamo i prodotti dal backend (nuovo endpoint dedicato)
+                // Recuperiamo i prodotti dal backend (endpoint dedicato)
                 val productsResponse = try {
                     pantryApi.getAllProducts()
                 } catch (e: Exception) {
@@ -164,15 +161,9 @@ class PantryViewModel(
                         dailyCalories = dailyCalories,
                         showOnlyOutOfStock = showOutOfStock,
                         stores = stores,
-                        pantryId = pantryResponse?.body()?.id,
-                        pantryCreatorId = pantryResponse?.body()?.creator,
-                        kcalThreshold = pantryResponse?.body()?.kcalThreshold,
-                        pantryUsers = pantryResponse?.body()?.users?.map { it.username } ?: emptyList(),
                         currentUsername = currentUsername
                     )
                 }
-
-                fetchShareRequests()
 
                 if (lastDate != today) {
                     dataStoreManager.saveDailyCalories(0, today)
@@ -191,6 +182,36 @@ class PantryViewModel(
                 _uiState.update { state ->
                     state.copy(allCategories = Category.entries.map { it.displayName })
                 }
+            }
+        }
+    }
+
+    fun fetchPantryDetails(force: Boolean = false) {
+        if (pantryDetailsJob?.isActive == true && !force) return
+        pantryDetailsJob = viewModelScope.launch {
+            try {
+                val pantryResponse = try {
+                    pantryApi.getPantry()
+                } catch (e: Exception) {
+                    android.util.Log.e("PantryViewModel", "Errore chiamata pantry", e)
+                    null
+                }
+
+                if (pantryResponse?.isSuccessful == true) {
+                    val body = pantryResponse.body()
+                    _uiState.update { state ->
+                        state.copy(
+                            pantryId = body?.id,
+                            pantryCreatorId = body?.creator,
+                            kcalThreshold = body?.kcalThreshold,
+                            pantryUsers = body?.users?.map { it.username } ?: emptyList()
+                        )
+                    }
+                }
+
+                fetchShareRequests()
+            } catch (e: Exception) {
+                android.util.Log.e("PantryViewModel", "Errore recupero dettagli dispensa", e)
             }
         }
     }
@@ -849,7 +870,8 @@ class PantryViewModel(
                         isProcessingShareRequest = false,
                         shareActionSuccessMessage = "Richiesta approvata"
                     ) }
-                    refreshData()
+                    refreshData(force = true)
+                    fetchPantryDetails(force = true)
                 } else {
                     val errorMsg = parseErrorMessage(response)
                     _uiState.update { it.copy(
@@ -905,7 +927,8 @@ class PantryViewModel(
                         isRemovingUser = false,
                         shareActionSuccessMessage = "Utente $username rimosso dalla dispensa"
                     ) }
-                    refreshData()
+                    refreshData(force = true)
+                    fetchPantryDetails(force = true)
                 } else {
                     val errorMsg = parseErrorMessage(response)
                     _uiState.update { it.copy(
@@ -933,7 +956,8 @@ class PantryViewModel(
                         isLeavingPantry = false,
                         shareActionSuccessMessage = "Hai lasciato la dispensa"
                     ) }
-                    refreshData()
+                    refreshData(force = true)
+                    fetchPantryDetails(force = true)
                     onSuccess?.invoke()
                 } else {
                     val errorMsg = parseErrorMessage(response)

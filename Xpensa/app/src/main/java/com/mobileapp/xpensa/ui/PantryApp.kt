@@ -202,7 +202,7 @@ fun PantryApp(
             if (backStack.last() != PantryDestination.PantryInfo) {
                 backStack.add(PantryDestination.PantryInfo)
             }
-            pantryViewModel.refreshData()
+            pantryViewModel.fetchPantryDetails(force = true)
             onPendingRequestConsumed()
         }
     }
@@ -322,7 +322,7 @@ fun PantryApp(
                         },
                         onLoginSuccess = {
                             // Refresh data in pantryViewModel now that we have a token
-                            pantryViewModel.refreshData()
+                            pantryViewModel.refreshData(force = true)
                             
                             // Clear backstack and go home
                             while (backStack.size > 0) {

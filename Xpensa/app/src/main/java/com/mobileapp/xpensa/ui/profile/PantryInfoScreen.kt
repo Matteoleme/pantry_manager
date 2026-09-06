@@ -61,7 +61,7 @@ fun PantryInfoScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.refreshData()
+        viewModel.fetchPantryDetails()
     }
 
     Scaffold(

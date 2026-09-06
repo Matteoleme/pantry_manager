@@ -57,7 +57,7 @@ fun StoresScreen(
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Aggiungi Negozio")
+                Icon(Icons.Default.Add, contentDescription = "Add new store")
             }
         }
     ) { paddingValues ->
@@ -68,7 +68,7 @@ fun StoresScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "I Miei Negozi",
+                text = "My stores",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -88,7 +88,7 @@ fun StoresScreen(
 
             if (uiState.stores.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nessun negozio salvato")
+                    Text("No saved stores")
                 }
             } else {
                 LazyColumn(
@@ -136,7 +136,7 @@ fun LocationStatusCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Posizione Attuale",
+                    text = "Current location",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -162,7 +162,7 @@ fun LocationStatusCard(
                         )
                     } else {
                         Text(
-                            text = "Recupero posizione...",
+                            text = "Retrieving location...",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.Gray
                         )
@@ -277,19 +277,19 @@ fun StoreItem(
                     try {
                         context.startActivity(intent)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Nessuna app di navigazione trovata", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "No navigation app found", Toast.LENGTH_SHORT).show()
                     }
                 }) {
                     Icon(
                         Icons.Default.Navigation,
-                        contentDescription = "Naviga",
+                        contentDescription = "Navigate",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Elimina",
+                        contentDescription = "Delete",
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -311,13 +311,13 @@ fun AddStoreDialog(
             viewModel.clearStoreSearch()
             onDismiss()
         },
-        title = { Text("Aggiungi Negozio") },
+        title = { Text("Add new store") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Nome o Indirizzo") },
+                    label = { Text("Name or address") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -332,7 +332,7 @@ fun AddStoreDialog(
                         enabled = query.isNotBlank() && !uiState.isSearchingStores && uiState.userLocation != null,
                         contentPadding = PaddingValues(horizontal = 4.dp)
                     ) {
-                        Text("Vicino a me", style = MaterialTheme.typography.labelSmall)
+                        Text("Near me", style = MaterialTheme.typography.labelSmall)
                     }
                     Button(
                         onClick = { viewModel.searchStores(query, nearMe = false) },
@@ -340,7 +340,7 @@ fun AddStoreDialog(
                         enabled = query.isNotBlank() && !uiState.isSearchingStores,
                         contentPadding = PaddingValues(horizontal = 4.dp)
                     ) {
-                        Text("Per Indirizzo", style = MaterialTheme.typography.labelSmall)
+                        Text("By Address", style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
@@ -356,7 +356,7 @@ fun AddStoreDialog(
 
                 if (uiState.storeSearchResults.isNotEmpty()) {
                     Text(
-                        "Risultati:",
+                        "Results:",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 8.dp)
@@ -395,7 +395,7 @@ fun AddStoreDialog(
                 viewModel.clearStoreSearch()
                 onDismiss()
             }) {
-                Text("Annulla")
+                Text("Cancel")
             }
         }
     )
@@ -443,7 +443,7 @@ fun SearchResultItem(
             )
             distText?.let {
                 Text(
-                    text = "Distanza: $it",
+                    text = "Distance: $it",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
