@@ -55,7 +55,7 @@ class FcmTokenRepository(
      * Se il token non è presente localmente, tenta prima di recuperarlo da Firebase.
      * Se il token rimane nullo o vuoto, la chiamata al backend viene saltata.
      */
-    suspend fun registerTokenWithBackend(): Result<Unit> {
+    suspend fun registerTokenWithBackend(force: Boolean = false): Result<Unit> {
         val api = authApi ?: return Result.failure(IllegalStateException("AuthApi non configurata in FcmTokenRepository"))
 
         var currentToken = dataStoreManager.fcmTokenFlow.first()
@@ -69,10 +69,17 @@ class FcmTokenRepository(
             return Result.success(Unit)
         }
 
+        val lastRegisteredToken = dataStoreManager.lastRegisteredFcmTokenFlow.first()
+        if (!force && lastRegisteredToken == currentToken) {
+            Log.d("FcmTokenRepository", "FCM token già registrato sul backend, chiamata PUT saltata.")
+            return Result.success(Unit)
+        }
+
         return try {
             val response = api.updateDeviceToken(DeviceTokenRequest(fcmToken = currentToken))
             if (response.isSuccessful) {
                 Log.d("FcmTokenRepository", "FCM token registrato con successo sul backend: $currentToken")
+                dataStoreManager.saveLastRegisteredFcmToken(currentToken)
                 Result.success(Unit)
             } else {
                 val errorMsg = "Errore durante la registrazione del token FCM sul backend: HTTP ${response.code()}"

@@ -36,7 +36,7 @@ class XpensaFirebaseMessagingService : FirebaseMessagingService() {
                     Log.d("XpensaFCMService", "Utente autenticato rilevato. Invio del nuovo FCM token al backend...")
                     val authApi = AuthApiFactory.createAuthApi(dataStoreManager)
                     val authenticatedRepository = FcmTokenRepository(dataStoreManager, authApi)
-                    authenticatedRepository.registerTokenWithBackend()
+                    authenticatedRepository.registerTokenWithBackend(force = true)
                 } else {
                     Log.d("XpensaFCMService", "Utente non autenticato. Il nuovo FCM token è stato salvato solo localmente.")
                 }

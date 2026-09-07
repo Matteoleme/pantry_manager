@@ -27,6 +27,7 @@ class DataStoreManager(private val context: Context) {
         val LAST_SYNC_TIMESTAMP_KEY = longPreferencesKey("last_sync_timestamp")
         val STORES_KEY = stringPreferencesKey("stores_json")
         val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token")
+        val LAST_REGISTERED_FCM_TOKEN_KEY = stringPreferencesKey("last_registered_fcm_token")
         val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
         val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         val TOKEN_TYPE_KEY = stringPreferencesKey("token_type")
@@ -86,6 +87,10 @@ class DataStoreManager(private val context: Context) {
 
     val fcmTokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[FCM_TOKEN_KEY]
+    }
+
+    val lastRegisteredFcmTokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[LAST_REGISTERED_FCM_TOKEN_KEY]
     }
 
     val authTokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -177,6 +182,12 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
+    suspend fun saveLastRegisteredFcmToken(token: String) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_REGISTERED_FCM_TOKEN_KEY] = token
+        }
+    }
+
     suspend fun saveAuthToken(accessToken: String, refreshToken: String, type: String) {
         context.dataStore.edit { preferences ->
             preferences[AUTH_TOKEN_KEY] = accessToken
@@ -197,6 +208,7 @@ class DataStoreManager(private val context: Context) {
             preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(TOKEN_TYPE_KEY)
             preferences.remove(CURRENT_USERNAME_KEY)
+            preferences.remove(LAST_REGISTERED_FCM_TOKEN_KEY)
         }
     }
 
@@ -206,6 +218,7 @@ class DataStoreManager(private val context: Context) {
             preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(TOKEN_TYPE_KEY)
             preferences.remove(CURRENT_USERNAME_KEY)
+            preferences.remove(LAST_REGISTERED_FCM_TOKEN_KEY)
             // Possiamo anche pulire prodotti e categorie se vogliamo una logout pulita
             preferences.remove(PRODUCTS_KEY)
             preferences.remove(CATEGORIES_KEY)

@@ -47,7 +47,7 @@ class AuthRepository(
 
                     // Registrazione del token FCM sul backend dopo un login riuscito (non bloccante)
                     try {
-                        fcmTokenRepository?.registerTokenWithBackend()
+                        fcmTokenRepository?.registerTokenWithBackend(force = true)
                     } catch (e: Exception) {
                         Log.e("AuthRepository", "Errore non bloccante durante la registrazione del token FCM dopo il login", e)
                     }
