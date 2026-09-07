@@ -15,8 +15,11 @@ class StatsViewModel(
     private val _uiState = MutableStateFlow(StatsUiState())
     val uiState: StateFlow<StatsUiState> = _uiState.asStateFlow()
 
-    init {
-        loadDayStats()
+    fun refreshCurrentPeriod() {
+        when (_uiState.value.selectedPeriod) {
+            StatisticsPeriod.DAY -> loadDayStats()
+            StatisticsPeriod.MONTH -> loadMonthStats()
+        }
     }
 
     fun selectPeriod(period: StatisticsPeriod) {
@@ -98,9 +101,6 @@ class StatsViewModel(
     }
 
     fun retry() {
-        when (_uiState.value.selectedPeriod) {
-            StatisticsPeriod.DAY -> loadDayStats()
-            StatisticsPeriod.MONTH -> loadMonthStats()
-        }
+        refreshCurrentPeriod()
     }
 }
