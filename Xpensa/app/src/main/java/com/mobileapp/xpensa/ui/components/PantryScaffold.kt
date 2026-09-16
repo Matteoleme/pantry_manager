@@ -118,7 +118,7 @@ fun PantryScaffold(
                                             .size(32.dp)
                                             .padding(end = 8.dp)
                                     )
-                                    Text("Home Pantry")
+                                    Text("Xpensa")
                                 }
                             }
                         },
@@ -148,30 +148,41 @@ fun PantryScaffold(
             },
             bottomBar = {
                 if (!isAuthScreen) {
+                    val navBarItemColors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFFF8F9FA),
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     NavigationBar {
                         NavigationBarItem(
                             icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                             label = { Text("Home") },
                             selected = currentDestination == PantryDestination.Home,
-                            onClick = { onNavigate(PantryDestination.Home) }
+                            onClick = { onNavigate(PantryDestination.Home) },
+                            colors = navBarItemColors
                         )
                         NavigationBarItem(
                             icon = { Icon(Icons.Default.Restaurant, contentDescription = "Consume") },
                             label = { Text("Consume") },
                             selected = currentDestination == PantryDestination.Consuma,
-                            onClick = { onNavigate(PantryDestination.Consuma) }
+                            onClick = { onNavigate(PantryDestination.Consuma) },
+                            colors = navBarItemColors
                         )
                         NavigationBarItem(
                             icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Trend") },
                             label = { Text("Trend") },
                             selected = currentDestination == PantryDestination.Trends,
-                            onClick = { onNavigate(PantryDestination.Trends) }
+                            onClick = { onNavigate(PantryDestination.Trends) },
+                            colors = navBarItemColors
                         )
                         NavigationBarItem(
                             icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                             label = { Text("Profile") },
                             selected = currentDestination == PantryDestination.Profile,
-                            onClick = { onNavigate(PantryDestination.Profile) }
+                            onClick = { onNavigate(PantryDestination.Profile) },
+                            colors = navBarItemColors
                         )
                     }
                 }

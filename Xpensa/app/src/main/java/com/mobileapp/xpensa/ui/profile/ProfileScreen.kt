@@ -109,7 +109,7 @@ fun ProfileScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Dispensa",
+                    text = "Pantry",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -124,7 +124,7 @@ fun ProfileScreen(
                 ) {
                     Icon(Icons.Default.Kitchen, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Informazioni Dispensa")
+                    Text("Pantry Information")
                 }
             }
         }
@@ -137,7 +137,7 @@ fun ProfileScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Sicurezza",
+                    text = "Security",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -153,7 +153,7 @@ fun ProfileScreen(
                 ) {
                     Icon(Icons.Default.Lock, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (showChangePassword) "Annulla" else "Cambia Password")
+                    Text(if (showChangePassword) "Cancel" else "Change Password")
                 }
 
                 if (showChangePassword) {
@@ -161,29 +161,35 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = oldPassword,
                         onValueChange = { oldPassword = it },
-                        label = { Text("Vecchia Password") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Old Password") },
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = newPassword,
                         onValueChange = { newPassword = it },
-                        label = { Text("Nuova Password") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("New Password") },
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = { Text("Conferma Nuova Password") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Confirm New Password") },
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { viewModel.changePassword(oldPassword, newPassword, confirmPassword) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Salva Nuova Password")
+                        Text("Save New Password")
                     }
                 }
             }
