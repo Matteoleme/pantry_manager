@@ -44,9 +44,7 @@ fun PantryScaffold(
             "Daily Stats",
             Icons.Default.BarChart,
             PantryDestination.Trends
-        ),
-        DrawerItem("Shopping List", Icons.Default.ShoppingCart),
-        DrawerItem("Share", Icons.Default.Share)
+        )
     )
 
     val isAuthScreen = currentDestination == PantryDestination.Login || currentDestination == PantryDestination.Register
@@ -66,7 +64,9 @@ fun PantryScaffold(
         gesturesEnabled = !isAuthScreen,
         drawerContent = {
             if (!isAuthScreen) {
-                ModalDrawerSheet {
+                ModalDrawerSheet(
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
                     drawerItems.forEach { item ->
                         NavigationDrawerItem(
                             label = { Text(item.label) },

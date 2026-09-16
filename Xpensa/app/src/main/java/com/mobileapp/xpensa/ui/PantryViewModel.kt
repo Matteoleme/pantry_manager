@@ -102,7 +102,6 @@ class PantryViewModel(
                 val localProducts = dataStoreManager.productsFlow.first()
                 val storedDailyCalories = dataStoreManager.dailyCaloriesFlow.first()
                 val lastDate = dataStoreManager.lastCaloriesDateFlow.first()
-                val showOutOfStock = dataStoreManager.showOutOfStockFlow.first()
                 val stores = dataStoreManager.storesFlow.first()
                 val currentUsername = dataStoreManager.currentUsernameFlow.first()
 
@@ -159,7 +158,8 @@ class PantryViewModel(
                         products = finalProducts,
                         allCategories = finalCategories,
                         dailyCalories = dailyCalories,
-                        showOnlyOutOfStock = showOutOfStock,
+                        showOnlyOutOfStock = false,
+                        selectedCategories = emptySet(),
                         stores = stores,
                         currentUsername = currentUsername
                     )

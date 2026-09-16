@@ -28,6 +28,10 @@ fun ManageProductsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var productToDelete by remember { mutableStateOf<Product?>(null) }
 
+    LaunchedEffect(Unit) {
+        viewModel.clearCategoryFilters()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

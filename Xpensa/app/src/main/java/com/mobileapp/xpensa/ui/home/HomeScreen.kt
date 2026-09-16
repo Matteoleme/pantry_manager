@@ -44,6 +44,7 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refreshData()
+        viewModel.clearCategoryFilters()
     }
 
     Column(modifier = modifier.fillMaxSize()) {

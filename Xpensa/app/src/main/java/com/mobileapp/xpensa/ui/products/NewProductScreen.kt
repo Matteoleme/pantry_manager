@@ -100,12 +100,12 @@ fun NewProductScreen(
     if (showNewCategoryDialog) {
         AlertDialog(
             onDismissRequest = { showNewCategoryDialog = false },
-            title = { Text("Nuova Categoria") },
+            title = { Text("New Category") },
             text = {
                 OutlinedTextField(
                     value = newCategoryInput,
                     onValueChange = { newCategoryInput = it },
-                    label = { Text("Nome Categoria") },
+                    label = { Text("Category Name") },
                     singleLine = true
                 )
             },
@@ -118,7 +118,7 @@ fun NewProductScreen(
                         showNewCategoryDialog = false
                     }
                 }) {
-                    Text("Aggiungi")
+                    Text("Add")
                 }
             },
             dismissButton = {
@@ -126,7 +126,7 @@ fun NewProductScreen(
                     showNewCategoryDialog = false
                     newCategoryInput = ""
                 }) {
-                    Text("Annulla")
+                    Text("Cancel")
                 }
             }
         )
@@ -144,7 +144,7 @@ fun NewProductScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Nuovo Prodotto",
+                    text = "New Product",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -166,13 +166,13 @@ fun NewProductScreen(
                         OutlinedTextField(
                             value = ean,
                             onValueChange = { ean = it },
-                            label = { Text("Codice EAN") },
+                            label = { Text("EAN Code") },
                             modifier = Modifier.fillMaxWidth(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             trailingIcon = {
                                 IconButton(onClick = onNavigateToScanner) {
-                                    Icon(Icons.Default.PhotoCamera, contentDescription = "Apri Scanner")
+                                    Icon(Icons.Default.PhotoCamera, contentDescription = "Open Scanner")
                                 }
                             }
                         )
@@ -186,7 +186,7 @@ fun NewProductScreen(
                             shape = MaterialTheme.shapes.medium,
                             enabled = ean.isNotBlank() && !uiState.isFetchingProduct
                         ) {
-                            Text("Cerca Prodotto da EAN")
+                            Text("Search Product by EAN")
                         }
                     }
                 }
@@ -196,13 +196,13 @@ fun NewProductScreen(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nome Prodotto *") },
+                    label = { Text("Product Name *") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = !isNameValid && name.isNotEmpty(),
                     supportingText = {
                         if (!isNameValid && name.isNotEmpty()) {
-                            Text("Il nome è obbligatorio", color = MaterialTheme.colorScheme.error)
+                            Text("Name is required", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 )
@@ -220,7 +220,7 @@ fun NewProductScreen(
                                 if (it.isEmpty() || it.toDoubleOrNull() != null || it == ".") quantity = it
                             }
                         },
-                        label = { Text("Quantità *") },
+                        label = { Text("Quantity *") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = if (selectedUnit == MeasurementUnit.UNIT) KeyboardType.Number else KeyboardType.Decimal
@@ -229,7 +229,7 @@ fun NewProductScreen(
                         isError = !isQuantityValid && quantity.isNotEmpty(),
                         supportingText = {
                             if (!isQuantityValid && quantity.isNotEmpty()) {
-                                Text("Inserisci un numero valido", color = MaterialTheme.colorScheme.error)
+                                Text("Enter a valid number", color = MaterialTheme.colorScheme.error)
                             }
                         }
                     )
@@ -258,7 +258,7 @@ fun NewProductScreen(
                 val kcalLabel = when(selectedUnit) {
                     MeasurementUnit.KG -> "Kcal/100g"
                     MeasurementUnit.L -> "Kcal/100ml"
-                    MeasurementUnit.UNIT -> "Kcal/unità"
+                    MeasurementUnit.UNIT -> "Kcal/unit"
                 }
 
                 OutlinedTextField(
@@ -287,7 +287,7 @@ fun NewProductScreen(
                         ),
                         shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("Annulla")
+                        Text("Cancel")
                     }
 
                     Button(
@@ -315,7 +315,7 @@ fun NewProductScreen(
                         ),
                         shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("Conferma")
+                        Text("Confirm")
                     }
                 }
             }
@@ -353,7 +353,7 @@ fun UnitDropdown(
             value = selectedUnit.symbol,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Unità") },
+            label = { Text("Unit") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable)
         )
@@ -394,7 +394,7 @@ fun CategoryDropdown(
             value = selectedCategoryName,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Categoria") },
+            label = { Text("Category") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier.menuAnchor().fillMaxWidth()
         )
@@ -413,7 +413,7 @@ fun CategoryDropdown(
             }
             HorizontalDivider()
             DropdownMenuItem(
-                text = { Text("(nuova)") },
+                text = { Text("(new)") },
                 onClick = { 
                     onAddNewCategory()
                     expanded = false 
