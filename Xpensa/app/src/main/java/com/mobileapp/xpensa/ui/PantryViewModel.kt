@@ -708,15 +708,51 @@ class PantryViewModel(
 
         viewModelScope.launch {
             try {
-                val userLoc = if (nearMe) uiState.value.userLocation else null
-                val results = nominatimApi.search(
-                    query = query,
-                    lat = userLoc?.latitude,
-                    lon = userLoc?.longitude
-                )
+                val results = if (nearMe) {
+                    val userLoc = uiState.value.userLocation
+                    if (userLoc != null) {
+                        val delta = 0.15 // ~15km radius box
+                        val minLon = userLoc.longitude - delta
+                        val maxLat = userLoc.latitude + delta
+                        val maxLon = userLoc.longitude + delta
+                        val minLat = userLoc.latitude - delta
+                        val viewbox = "$minLon,$maxLat,$maxLon,$minLat"
+
+                        var res = try {
+                            nominatimApi.search(
+                                query = query,
+                                viewbox = viewbox,
+                                bounded = 1,
+                                lat = userLoc.latitude,
+                                lon = userLoc.longitude
+                            )
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+
+                        if (res.isEmpty()) {
+                            res = try {
+                                nominatimApi.search(
+                                    query = query,
+                                    viewbox = viewbox,
+                                    bounded = 0,
+                                    lat = userLoc.latitude,
+                                    lon = userLoc.longitude
+                                )
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+                        res
+                    } else {
+                        nominatimApi.search(query = query)
+                    }
+                } else {
+                    nominatimApi.search(query = query)
+                }
 
                 if (results.isEmpty()) {
-                    _uiState.update { it.copy(isSearchingStores = false, storeSearchError = "Nessun risultato trovato") }
+                    _uiState.update { it.copy(isSearchingStores = false, storeSearchError = "No results found for '$query'") }
                 } else {
                     val mappedResults = results.map { res ->
                         StoreSearchResult(
@@ -729,7 +765,7 @@ class PantryViewModel(
                     _uiState.update { it.updateLocationSortedSearchResults(mappedResults) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isSearchingStores = false, storeSearchError = "Errore: ${e.localizedMessage}") }
+                _uiState.update { it.copy(isSearchingStores = false, storeSearchError = "Error: ${e.localizedMessage}") }
             }
         }
     }

@@ -110,7 +110,8 @@ fun StoresScreen(
     if (showAddDialog) {
         AddStoreDialog(
             viewModel = viewModel,
-            onDismiss = { showAddDialog = false }
+            onDismiss = { showAddDialog = false },
+            onRequestPermission = { locationPermissionState.launchPermissionRequest() }
         )
     }
 }
@@ -301,7 +302,8 @@ fun StoreItem(
 @Composable
 fun AddStoreDialog(
     viewModel: PantryViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onRequestPermission: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var query by remember { mutableStateOf("") }
@@ -327,7 +329,10 @@ fun AddStoreDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { viewModel.searchStores(query, nearMe = true) },
+                        onClick = {
+                            onRequestPermission()
+                            viewModel.searchStores(query, nearMe = true)
+                        },
                         modifier = Modifier.weight(1f),
                         enabled = query.isNotBlank() && !uiState.isSearchingStores && uiState.userLocation != null,
                         contentPadding = PaddingValues(horizontal = 4.dp)

@@ -13,6 +13,8 @@ data class NominatimSearchResult(
     val lon: String,
     val name: String? = null,
     @SerialName("display_name") val displayName: String,
+    @SerialName("class") val categoryClass: String? = null,
+    val type: String? = null,
     val address: NominatimAddress? = null
 )
 
@@ -37,8 +39,10 @@ interface NominatimApi {
         @Query("q") query: String,
         @Query("format") format: String = "json",
         @Query("addressdetails") addressDetails: Int = 1,
-        @Query("limit") limit: Int = 10,
+        @Query("limit") limit: Int = 15,
         @Query("countrycodes") countryCodes: String = "it",
+        @Query("viewbox") viewbox: String? = null,
+        @Query("bounded") bounded: Int? = null,
         @Query("lat") lat: Double? = null,
         @Query("lon") lon: Double? = null,
         @Header("User-Agent") userAgent: String = "Xpensa-PantryManager/1.0"
