@@ -48,6 +48,7 @@ fun PantryScaffold(
     )
 
     val isAuthScreen = currentDestination == PantryDestination.Login || currentDestination == PantryDestination.Register
+    val isScannerScreen = currentDestination == PantryDestination.Scanner
     val showSearch = currentDestination == PantryDestination.Home ||
                      currentDestination == PantryDestination.Consuma ||
                      currentDestination == PantryDestination.ManageProducts
@@ -61,9 +62,9 @@ fun PantryScaffold(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = !isAuthScreen,
+        gesturesEnabled = !isAuthScreen && !isScannerScreen,
         drawerContent = {
-            if (!isAuthScreen) {
+            if (!isAuthScreen && !isScannerScreen) {
                 ModalDrawerSheet(
                     modifier = Modifier.fillMaxWidth(0.85f)
                 ) {
@@ -74,14 +75,6 @@ fun PantryScaffold(
                             onClick = {
                                 scope.launch { drawerState.close() }
 
-                                /*
-                                if (item.label == "Daily Stats") {
-                                    onStatsClick()
-                                } else {
-                                    item.destination?.let { onNavigate(it) }
-                                }
-
-                                 */
                                 item.destination?.let { onNavigate(it) }
                             },
                             icon = { Icon(item.icon, contentDescription = item.label) }
@@ -93,7 +86,7 @@ fun PantryScaffold(
     ) {
         Scaffold(
             topBar = {
-                if (!isAuthScreen) {
+                if (!isAuthScreen && !isScannerScreen) {
                     TopAppBar(
                         title = {
                             if (isSearchActive) {
@@ -147,7 +140,7 @@ fun PantryScaffold(
                 }
             },
             bottomBar = {
-                if (!isAuthScreen) {
+                if (!isAuthScreen && !isScannerScreen) {
                     val navBarItemColors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFFF8F9FA),
                         selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -188,7 +181,7 @@ fun PantryScaffold(
                 }
             },
             floatingActionButton = {
-                if (!isAuthScreen && (currentDestination == PantryDestination.Home || currentDestination == PantryDestination.Consuma)) {
+                if (!isAuthScreen && !isScannerScreen && (currentDestination == PantryDestination.Home || currentDestination == PantryDestination.Consuma)) {
                     FloatingActionButton(onClick = { onNavigate(PantryDestination.NewProduct) }) {
                         Icon(Icons.Default.Add, contentDescription = "Add Product")
                     }
