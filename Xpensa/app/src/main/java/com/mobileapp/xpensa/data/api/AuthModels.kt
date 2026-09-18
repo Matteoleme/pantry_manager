@@ -12,9 +12,9 @@ data class RegisterRequest(
 
 @Serializable
 data class RegisterResponse(
-    val id: Int,
-    val name: String,
-    val username: String
+    val id: Int? = null,
+    val name: String? = null,
+    val username: String? = null
 )
 
 @Serializable
