@@ -1,6 +1,7 @@
 package com.mobileapp.xpensa.ui.stats.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,19 +17,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.mobileapp.xpensa.data.api.DayKcalResponse
 import kotlin.math.max
-import androidx.compose.runtime.LaunchedEffect
+import kotlin.math.min
+import androidx.compose.foundation.background
 
 @Composable
 fun MonthlyCalorieChart(
@@ -36,12 +42,15 @@ fun MonthlyCalorieChart(
     threshold: Int,
     modifier: Modifier = Modifier
 ) {
-    val orderedDays = days.sortedBy { it.date }
     var selectedDay by remember {
         mutableStateOf<DayKcalResponse?>(null)
     }
 
     val scrollState = rememberScrollState()
+
+    // Keep the days in chronological order.
+    // The scroll position will start at the newest days.
+    val orderedDays = days.sortedBy { it.date }
 
     val maxKcal = max(
         orderedDays.maxOfOrNull {
@@ -50,35 +59,41 @@ fun MonthlyCalorieChart(
         threshold.toFloat()
     )
 
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val primaryContainerColor =
-        MaterialTheme.colorScheme.primaryContainer
-    val errorColor = MaterialTheme.colorScheme.error
-    val secondaryContainerColor =
-        MaterialTheme.colorScheme.secondaryContainer
-    val onSurfaceVariant =
+    val withinLimitCount = orderedDays.count {
+        (it.kcal.toFloatOrNull() ?: 0f) <= threshold
+    }
+
+    val exceededCount = orderedDays.count {
+        (it.kcal.toFloatOrNull() ?: 0f) > threshold
+    }
+
+    // Colors
+    val withinLimitColor = Color(0xFF00897B)
+    val exceededColor = Color(0xFFE53935)
+    val selectedColor = MaterialTheme.colorScheme.primary
+
+    val backgroundBarColor =
+        MaterialTheme.colorScheme.surfaceVariant
+
+    val textColor =
         MaterialTheme.colorScheme.onSurfaceVariant
 
-    /*
-     * Each day gets 44.dp of horizontal space.
-     *
-     * This gives approximately 10 bars on screen.
-     */
-    val barSlotWidth = 44.dp
+    // Width occupied by one day.
+    // Smaller bars = more days visible at once.
+    val barSlotWidth = 64.dp
 
-    /*
-     * Make the complete chart wide enough for every day.
-     *
-     * If there are fewer than 10 days, we still use
-     * enough width for approximately 10 bars.
-     */
-    val chartWidth = if (orderedDays.size <= 10) {
-        10 * barSlotWidth.value
-    } else {
+    val barWidth = 20.dp
+
+    val chartWidth = max(
+        10 * barSlotWidth.value,
         orderedDays.size * barSlotWidth.value
-    }.dp
+    ).dp
 
-    LaunchedEffect(days.size) {
+    /*
+     * When the chart opens, move the horizontal scroll
+     * all the way to the right so the newest days are visible.
+     */
+    LaunchedEffect(orderedDays.size) {
         scrollState.scrollTo(scrollState.maxValue)
     }
 
@@ -91,96 +106,121 @@ fun MonthlyCalorieChart(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Monthly calories",
-                style = MaterialTheme.typography.titleMedium
-            )
 
-            /*
-             * Show information about the selected day.
-             */
-            selectedDay?.let { day ->
+            // -------------------------------------------------
+            // TITLE + LIMIT
+            // -------------------------------------------------
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Monthly calories",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
                 Surface(
-                    color = secondaryContainerColor,
+                    color = exceededColor.copy(alpha = 0.10f),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        text = "Limit: $threshold kcal",
+                        modifier = Modifier.padding(
+                            horizontal = 10.dp,
+                            vertical = 6.dp
+                        ),
+                        color = exceededColor,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+
+            // -------------------------------------------------
+            // SELECTED DAY
+            // -------------------------------------------------
+
+            selectedDay?.let { day ->
+
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.medium
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(10.dp),
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween
                     ) {
                         Text(
                             text = formatDate(day.date),
-                            style = MaterialTheme.typography.bodyLarge
+                            style =
+                                MaterialTheme.typography.bodyMedium
                         )
 
                         Text(
                             text = "${day.kcal} kcal",
-                            style = MaterialTheme.typography.bodyLarge
+                            style =
+                                MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
             }
 
-            /*
-             * The chart and the dates are inside the same
-             * horizontally scrollable area.
-             *
-             * This means the bars and their dates always
-             * move together.
-             */
+            // -------------------------------------------------
+            // CHART
+            // -------------------------------------------------
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(scrollState)
             ) {
+
                 Box(
                     modifier = Modifier
                         .width(chartWidth)
-                        .height(310.dp)
+                        .height(270.dp)
                 ) {
 
-                    /*
-                     * BAR CHART
-                     */
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(265.dp)
+                            .height(220.dp)
                             .pointerInput(orderedDays) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        val event = awaitPointerEvent()
 
-                                        val position = event.changes
-                                            .firstOrNull()
-                                            ?.position
-                                            ?: continue
+                                detectTapGestures { position ->
 
-                                        if (orderedDays.isEmpty()) {
-                                            continue
-                                        }
+                                    if (orderedDays.isEmpty()) {
+                                        return@detectTapGestures
+                                    }
 
-                                        val index =
-                                            (
-                                                    position.x /
-                                                            barSlotWidth.toPx()
-                                                    ).toInt()
+                                    val slotWidth =
+                                        barSlotWidth.toPx()
 
-                                        if (index in orderedDays.indices) {
-                                            selectedDay = orderedDays[index]
-                                        }
+                                    val index =
+                                        (
+                                                position.x / slotWidth
+                                                ).toInt()
+
+                                    if (index in orderedDays.indices) {
+                                        selectedDay =
+                                            orderedDays[index]
                                     }
                                 }
                             }
                     ) {
-                        if (orderedDays.isEmpty() || maxKcal <= 0f) {
+
+                        if (
+                            orderedDays.isEmpty() ||
+                            maxKcal <= 0f
+                        ) {
                             return@Canvas
                         }
 
-                        val topPadding = 20.dp.toPx()
-                        val bottomPadding = 20.dp.toPx()
+                        val topPadding = 10.dp.toPx()
+                        val bottomPadding = 15.dp.toPx()
 
                         val graphHeight =
                             size.height -
@@ -190,28 +230,27 @@ fun MonthlyCalorieChart(
                         val slotWidth =
                             barSlotWidth.toPx()
 
-                        /*
-                         * Width of the actual bar.
-                         *
-                         * The remaining space in each slot
-                         * creates a small gap between bars.
-                         */
-                        val barWidth = 30.dp.toPx()
+                        val actualBarWidth =
+                            barWidth.toPx()
 
+                        // Convert kcal into a Y position.
                         fun yForKcal(kcal: Float): Float {
                             return topPadding +
                                     graphHeight -
-                                    (kcal / maxKcal) * graphHeight
+                                    (
+                                            kcal / maxKcal
+                                            ) * graphHeight
                         }
 
-                        /*
-                         * Calorie limit line.
-                         */
+                        // -----------------------------------------
+                        // THRESHOLD LINE
+                        // -----------------------------------------
+
                         val thresholdY =
                             yForKcal(threshold.toFloat())
 
                         drawLine(
-                            color = errorColor,
+                            color = exceededColor,
                             start = Offset(
                                 0f,
                                 thresholdY
@@ -220,23 +259,40 @@ fun MonthlyCalorieChart(
                                 size.width,
                                 thresholdY
                             ),
-                            strokeWidth = 2.dp.toPx()
+                            strokeWidth = 2.dp.toPx(),
+                            pathEffect =
+                                PathEffect.dashPathEffect(
+                                    floatArrayOf(
+                                        10.dp.toPx(),
+                                        7.dp.toPx()
+                                    ),
+                                    0f
+                                )
                         )
 
-                        /*
-                         * Draw every day's bar.
-                         */
-                        orderedDays.forEachIndexed { index, day ->
+                        // -----------------------------------------
+                        // BARS
+                        // -----------------------------------------
+
+                        orderedDays.forEachIndexed {
+                                index,
+                                day ->
 
                             val kcal =
-                                day.kcal.toFloatOrNull() ?: 0f
+                                day.kcal
+                                    .toFloatOrNull()
+                                    ?: 0f
 
                             val barHeight =
-                                (kcal / maxKcal) * graphHeight
+                                (kcal / maxKcal) *
+                                        graphHeight
 
                             val x =
                                 index * slotWidth +
-                                        (slotWidth - barWidth) / 2
+                                        (
+                                                slotWidth -
+                                                        actualBarWidth
+                                                ) / 2f
 
                             val y =
                                 topPadding +
@@ -244,15 +300,21 @@ fun MonthlyCalorieChart(
                                         barHeight
 
                             val isSelected =
-                                selectedDay?.date == day.date
+                                selectedDay?.date ==
+                                        day.date
 
-                            val isOverLimit =
+                            val isExceeded =
                                 kcal > threshold
 
                             val barColor = when {
-                                isSelected -> primaryColor
-                                isOverLimit -> errorColor
-                                else -> primaryContainerColor
+                                isSelected ->
+                                    selectedColor
+
+                                isExceeded ->
+                                    exceededColor
+
+                                else ->
+                                    withinLimitColor
                             }
 
                             drawRoundRect(
@@ -262,66 +324,94 @@ fun MonthlyCalorieChart(
                                     y
                                 ),
                                 size = Size(
-                                    barWidth,
+                                    actualBarWidth,
                                     barHeight
                                 ),
-                                cornerRadius = CornerRadius(
-                                    5.dp.toPx(),
-                                    5.dp.toPx()
-                                )
+                                cornerRadius =
+                                    CornerRadius(
+                                        6.dp.toPx(),
+                                        6.dp.toPx()
+                                    )
                             )
                         }
                     }
 
-                    /*
-                     * DATE LABELS
-                     *
-                     * Each date is positioned underneath
-                     * its corresponding bar.
-                     *
-                     * Example:
-                     *
-                     * 2026-09-10 -> 10/9
-                     */
+                    // -------------------------------------------------
+                    // DATE LABELS
+                    // -------------------------------------------------
+
                     orderedDays.forEachIndexed { index, day ->
 
                         Text(
                             text = formatDate(day.date),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = onSurfaceVariant,
+                            style = MaterialTheme
+                                .typography
+                                .labelSmall,
+                            color = textColor,
                             modifier = Modifier
                                 .width(barSlotWidth)
                                 .offset(
                                     x = barSlotWidth * index,
-                                    y = 270.dp
+                                    y = 225.dp
                                 )
                         )
                     }
                 }
             }
 
-            /*
-             * Calorie limit explanation.
-             */
-            Text(
-                text = "Limit: $threshold kcal",
-                style = MaterialTheme.typography.labelMedium,
-                color = errorColor
-            )
+            // -------------------------------------------------
+            // LEGEND
+            // -------------------------------------------------
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.SpaceBetween
+            ) {
+
+                LegendItem(
+                    color = withinLimitColor,
+                    text =
+                        "Within Limit (${withinLimitCount} days)"
+                )
+
+                LegendItem(
+                    color = exceededColor,
+                    text =
+                        "Exceeded (${exceededCount} days)"
+                )
+            }
         }
     }
 }
 
-/*
- * Converts dates to the short format used underneath
- * the bars.
- *
- * Examples:
- *
- * 2026-09-10 -> 10/9
- * 2026-01-05 -> 5/1
- * 10-9-2026  -> 10/9
- */
+@Composable
+private fun LegendItem(
+    color: Color,
+    text: String
+) {
+    Row(
+        horizontalArrangement =
+            Arrangement.spacedBy(6.dp)
+    ) {
+
+        Box(
+            modifier = Modifier
+                .width(8.dp)
+                .height(8.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(color)
+        )
+
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 private fun formatDate(date: String): String {
 
     val parts = date.split("-")
@@ -330,30 +420,34 @@ private fun formatDate(date: String): String {
         return date
     }
 
-    /*
-     * API format:
-     *
-     * YYYY-MM-DD
-     */
+    // API format: YYYY-MM-DD
     if (parts[0].length == 4) {
 
-        val month = parts[1].toIntOrNull()
-        val day = parts[2].toIntOrNull()
+        val month =
+            parts[1].toIntOrNull()
 
-        if (month != null && day != null) {
+        val day =
+            parts[2].toIntOrNull()
+
+        if (
+            month != null &&
+            day != null
+        ) {
             return "$day/$month"
         }
     }
 
-    /*
-     * Also support:
-     *
-     * DD-MM-YYYY
-     */
-    val day = parts[0].toIntOrNull()
-    val month = parts[1].toIntOrNull()
+    // Also support DD-MM-YYYY
+    val day =
+        parts[0].toIntOrNull()
 
-    if (day != null && month != null) {
+    val month =
+        parts[1].toIntOrNull()
+
+    if (
+        day != null &&
+        month != null
+    ) {
         return "$day/$month"
     }
 
